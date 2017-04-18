@@ -4,7 +4,7 @@ import com.minecolonies.blockout.Log;
 import com.minecolonies.blockout.controls.Button;
 import com.minecolonies.coremod.MineColonies;
 import com.minecolonies.coremod.colony.Structures;
-import com.minecolonies.coremod.lib.Constants;
+import com.minecolonies.api.util.Constants;
 import com.minecolonies.coremod.network.messages.BuildToolPlaceMessage;
 import com.minecolonies.coremod.util.BlockUtils;
 import com.minecolonies.coremod.util.LanguageHandler;

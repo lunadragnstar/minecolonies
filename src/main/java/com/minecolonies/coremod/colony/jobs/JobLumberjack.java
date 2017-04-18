@@ -1,5 +1,6 @@
 package com.minecolonies.coremod.colony.jobs;
 
+import com.minecolonies.api.citizen.lumberjack.tree.ITree;
 import com.minecolonies.coremod.client.render.RenderBipedCitizen;
 import com.minecolonies.coremod.colony.CitizenData;
 import com.minecolonies.coremod.entity.ai.basic.AbstractAISkeleton;
@@ -19,7 +20,7 @@ public class JobLumberjack extends AbstractJob
      * The tree this lumberjack is currently working on.
      */
     @Nullable
-    public Tree tree;
+    public ITree tree;
 
     /**
      * Create a lumberjack job.

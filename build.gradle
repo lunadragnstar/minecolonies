@@ -80,6 +80,30 @@ dependencies {
     compile 'com.intellij:annotations:+@jar'
 }
 
+sourceSets {
+    main {
+        java {
+            srcDir 'src/main/java'
+        }
+        resources {
+            srcDir 'src/resources'
+        }
+    }
+    api {
+        java {
+            srcDir 'src/api/java'
+        }
+    }
+    test {
+        java {
+            srcDir 'src/test/java'
+        }
+    }
+}
+
+// Add API dir to the IDEA module
+idea.module.sourceDirs += sourceSets.api.java.srcDirs
+
 ext.configFile = file "build.properties"
 
 configFile.withReader {

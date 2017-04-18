@@ -11,7 +11,7 @@ import com.minecolonies.coremod.colony.CitizenDataView;
 import com.minecolonies.coremod.colony.WorkOrderView;
 import com.minecolonies.coremod.colony.buildings.BuildingTownHall;
 import com.minecolonies.coremod.colony.permissions.Permissions;
-import com.minecolonies.coremod.lib.Constants;
+import com.minecolonies.api.util.Constants;
 import com.minecolonies.coremod.network.messages.*;
 import com.minecolonies.coremod.util.BlockPosUtil;
 import com.minecolonies.coremod.util.LanguageHandler;

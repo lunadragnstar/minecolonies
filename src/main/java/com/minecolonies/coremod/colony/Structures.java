@@ -1,6 +1,6 @@
 package com.minecolonies.coremod.colony;
 
-import com.minecolonies.coremod.lib.Constants;
+import com.minecolonies.api.util.Constants;
 import com.minecolonies.coremod.util.Log;
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;

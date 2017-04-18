@@ -2,7 +2,7 @@ package com.minecolonies.coremod.items;
 
 import com.minecolonies.coremod.MineColonies;
 import com.minecolonies.coremod.creativetab.ModCreativeTabs;
-import com.minecolonies.coremod.lib.Constants;
+import com.minecolonies.api.util.Constants;
 import com.minecolonies.coremod.network.messages.SaveScanMessage;
 import com.minecolonies.coremod.util.BlockPosUtil;
 import com.minecolonies.coremod.util.LanguageHandler;

@@ -8,7 +8,7 @@ import net.minecraft.util.math.MathHelper;
 
 import java.io.File;
 
-import com.minecolonies.coremod.lib.Constants;
+import com.minecolonies.api.util.Constants;
 
 import static com.minecolonies.coremod.configuration.Configurations.*;
 

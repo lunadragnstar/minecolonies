@@ -1,7 +1,7 @@
 package com.minecolonies.structures.helpers;
 
 import com.minecolonies.coremod.blocks.ModBlocks;
-import com.minecolonies.coremod.lib.Constants;
+import com.minecolonies.api.util.Constants;
 import com.minecolonies.coremod.util.BlockUtils;
 import com.minecolonies.coremod.util.Log;
 import com.minecolonies.structures.fake.FakeEntity;

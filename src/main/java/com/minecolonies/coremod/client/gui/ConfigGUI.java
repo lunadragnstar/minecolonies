@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.minecolonies.coremod.configuration.ConfigurationHandler;
-import com.minecolonies.coremod.lib.Constants;
+import com.minecolonies.api.util.Constants;
 
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.resources.I18n;

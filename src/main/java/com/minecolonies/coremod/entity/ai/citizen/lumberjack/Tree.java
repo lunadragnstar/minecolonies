@@ -1,9 +1,11 @@
 package com.minecolonies.coremod.entity.ai.citizen.lumberjack;
 
-import com.minecolonies.blockout.Log;
+import com.minecolonies.api.citizen.lumberjack.tree.ITree;
 import com.minecolonies.compatibility.Compatibility;
 import com.minecolonies.coremod.util.BlockPosUtil;
-import net.minecraft.block.*;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockNewLog;
+import net.minecraft.block.BlockOldLog;
 import net.minecraft.block.material.Material;
 import net.minecraft.init.Blocks;
 import net.minecraft.nbt.NBTTagCompound;
@@ -24,7 +26,7 @@ import java.util.List;
 /**
  * Custom class for Trees. Used by lumberjack
  */
-public class Tree
+public class Tree implements ITree
 {
     /**
      * Tag to save the location to NBT.
@@ -166,7 +168,7 @@ public class Tree
      * @param pos   The coordinates.
      * @return true if the log is part of a tree.
      */
-    public static boolean checkTree(@NotNull final IBlockAccess world, final BlockPos pos)
+    public static boolean checkTree(@NotNull IBlockAccess world, BlockPos pos)
     {
         //Is the first block a log?
         final Block block = world.getBlockState(pos).getBlock();
@@ -175,7 +177,7 @@ public class Tree
             return false;
         }
 
-        final Tuple<BlockPos, BlockPos> baseAndTOp = getBottomAndTopLog(world, pos, new LinkedList<>(), null, null);
+        final Tuple<BlockPos, BlockPos> baseAndTOp = Tree.getBottomAndTopLog(world, pos, new LinkedList<>(), null, null);
 
         //Get base log, should already be base log.
         final BlockPos basePos = baseAndTOp.getFirst();
@@ -183,7 +185,38 @@ public class Tree
         //Make sure tree is on solid ground and tree is not build above cobblestone.
         return world.getBlockState(basePos.down()).getMaterial().isSolid()
                  && world.getBlockState(basePos.down()).getBlock() != Blocks.COBBLESTONE
-                 && hasEnoughLeaves(world, baseAndTOp.getSecond());
+                 && Tree.hasEnoughLeaves(world, baseAndTOp.getSecond());
+    }
+
+    /**
+     * Reads the tree object from NBT.
+     *
+     * @param compound the compound of the tree.
+     * @return a new tree object.
+     */
+    @NotNull
+    public static Tree readFromNBT(@NotNull NBTTagCompound compound)
+    {
+        @NotNull final Tree tree = new Tree();
+        tree.location = BlockPosUtil.readFromNBT(compound, Tree.TAG_LOCATION);
+
+        tree.woodBlocks = new LinkedList<>();
+        final NBTTagList logs = compound.getTagList(Tree.TAG_LOGS, Constants.NBT.TAG_COMPOUND);
+        for (int i = 0; i < logs.tagCount(); i++)
+        {
+            tree.woodBlocks.add(BlockPosUtil.readFromNBTTagList(logs, i));
+        }
+
+        tree.stumpLocations = new ArrayList<>();
+        final NBTTagList stumps = compound.getTagList(Tree.TAG_STUMPS, Constants.NBT.TAG_COMPOUND);
+        for (int i = 0; i < stumps.tagCount(); i++)
+        {
+            tree.stumpLocations.add(BlockPosUtil.readFromNBTTagList(stumps, i));
+        }
+
+        tree.topLog = BlockPosUtil.readFromNBT(compound, Tree.TAG_TOP_LOG);
+
+        return tree;
     }
 
     /**
@@ -263,37 +296,6 @@ public class Tree
     }
 
     /**
-     * Reads the tree object from NBT.
-     *
-     * @param compound the compound of the tree.
-     * @return a new tree object.
-     */
-    @NotNull
-    public static Tree readFromNBT(@NotNull final NBTTagCompound compound)
-    {
-        @NotNull final Tree tree = new Tree();
-        tree.location = BlockPosUtil.readFromNBT(compound, TAG_LOCATION);
-
-        tree.woodBlocks = new LinkedList<>();
-        final NBTTagList logs = compound.getTagList(TAG_LOGS, Constants.NBT.TAG_COMPOUND);
-        for (int i = 0; i < logs.tagCount(); i++)
-        {
-            tree.woodBlocks.add(BlockPosUtil.readFromNBTTagList(logs, i));
-        }
-
-        tree.stumpLocations = new ArrayList<>();
-        final NBTTagList stumps = compound.getTagList(TAG_STUMPS, Constants.NBT.TAG_COMPOUND);
-        for (int i = 0; i < stumps.tagCount(); i++)
-        {
-            tree.stumpLocations.add(BlockPosUtil.readFromNBTTagList(stumps, i));
-        }
-
-        tree.topLog = BlockPosUtil.readFromNBT(compound, TAG_TOP_LOG);
-
-        return tree;
-    }
-
-    /**
      * Checks if the found log is part of a tree.
      *
      * @param world  The world the tree is in.
@@ -331,6 +333,7 @@ public class Tree
      *
      * @param world The world where the blocks are in.
      */
+    @Override
     public void findLogs(@NotNull final World world)
     {
         addAndSearch(world, location);
@@ -347,6 +350,7 @@ public class Tree
      *
      * @param yLevel The base y.
      */
+    @Override
     public void fillTreeStumps(final int yLevel)
     {
         for (@NotNull final BlockPos pos : woodBlocks)
@@ -445,6 +449,7 @@ public class Tree
      *
      * @return the position.
      */
+    @Override
     public BlockPos pollNextLog()
     {
         return woodBlocks.pollLast();
@@ -455,6 +460,7 @@ public class Tree
      *
      * @return the position.
      */
+    @Override
     public BlockPos pollNextLeaf()
     {
         return leaves.pollLast();
@@ -465,6 +471,7 @@ public class Tree
      *
      * @return the position.
      */
+    @Override
     public BlockPos peekNextLog()
     {
         return woodBlocks.peekLast();
@@ -475,6 +482,7 @@ public class Tree
      *
      * @return the position.
      */
+    @Override
     public BlockPos peekNextLeaf()
     {
         return leaves.peekLast();
@@ -485,6 +493,7 @@ public class Tree
      *
      * @return true if there are leaves associated with the tree.
      */
+    @Override
     public boolean hasLeaves()
     {
         return !leaves.isEmpty();
@@ -495,6 +504,7 @@ public class Tree
      *
      * @return true if there are wood blocks associated with the tree.
      */
+    @Override
     public boolean hasLogs()
     {
         return !woodBlocks.isEmpty();
@@ -505,6 +515,7 @@ public class Tree
      *
      * @return an Arraylist of the positions.
      */
+    @Override
     @NotNull
     public List<BlockPos> getStumpLocations()
     {
@@ -516,6 +527,7 @@ public class Tree
      *
      * @param pos the position of the stump.
      */
+    @Override
     public void removeStump(final BlockPos pos)
     {
         stumpLocations.remove(pos);
@@ -527,6 +539,7 @@ public class Tree
      *
      * @return the EnumType variant.
      */
+    @Override
     public int getVariant()
     {
         return variantNumber;
@@ -538,7 +551,8 @@ public class Tree
      * @param other the other tree.
      * @return the square distance in double.
      */
-    public double squareDistance(@NotNull final Tree other)
+    @Override
+    public double squareDistance(@NotNull final ITree other)
     {
         return this.getLocation().distanceSq(other.getLocation());
     }
@@ -548,6 +562,7 @@ public class Tree
      *
      * @return the position.
      */
+    @Override
     public BlockPos getLocation()
     {
         return location;
@@ -581,6 +596,7 @@ public class Tree
      *
      * @param compound the compound of the tree.
      */
+    @Override
     public void writeToNBT(@NotNull final NBTTagCompound compound)
     {
         if (!isTree)

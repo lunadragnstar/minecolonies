@@ -1,4 +1,4 @@
-package com.minecolonies.coremod.lib;
+package com.minecolonies.api.util;
 
 /**
  * Some constants needed for the whole mod.
@@ -8,6 +8,7 @@ public class Constants
     public static final String MOD_ID                = "minecolonies";
     public static final String MOD_NAME              = "MineColonies";
     public static final String VERSION               = "@VERSION@";
+    public static final String APIVERSION            = "@APIVERSION@";
     public static final String FORGE_VERSION         = "required-after:Forge@[12.18.1.2076,)";
     public static final String MC_VERSION            = "[1.10.2]";
     public static final String CLIENT_PROXY_LOCATION = "com.minecolonies.coremod.proxy.ClientProxy";
