@@ -2,10 +2,10 @@ package com.minecolonies.coremod.entity.ai.citizen.miner;
 
 import com.minecolonies.coremod.colony.buildings.BuildingMiner;
 import com.minecolonies.coremod.colony.jobs.JobMiner;
-import com.minecolonies.coremod.entity.ai.basic.AbstractEntityAIStructure;
-import com.minecolonies.coremod.entity.ai.util.AIState;
-import com.minecolonies.coremod.entity.ai.util.AITarget;
-import com.minecolonies.coremod.util.Log;
+import com.minecolonies.skeleton.ai.AbstractEntityAIStructure;
+import com.minecolonies.api.util.AIState;
+import com.minecolonies.api.util.AITarget;
+import com.minecolonies.api.util.Log;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockLadder;
 import net.minecraft.block.BlockOre;
@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.awt.geom.Point2D;
 
-import static com.minecolonies.coremod.entity.ai.util.AIState.*;
+import static com.minecolonies.api.util.AIState.*;
 
 /**
  * Class which handles the miner behaviour.

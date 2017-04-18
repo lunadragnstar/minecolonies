@@ -1,13 +1,13 @@
 package com.minecolonies.coremod.entity.ai.citizen.builder;
 
+import com.minecolonies.api.colony.building.IBuilding;
 import com.minecolonies.coremod.blocks.AbstractBlockHut;
 import com.minecolonies.coremod.blocks.ModBlocks;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
 import com.minecolonies.coremod.colony.workorders.WorkOrderBuild;
 import com.minecolonies.coremod.colony.workorders.WorkOrderBuildDecoration;
-import com.minecolonies.coremod.configuration.Configurations;
-import com.minecolonies.coremod.util.BlockUtils;
-import com.minecolonies.coremod.util.StructureWrapper;
+import com.minecolonies.api.configurations.Configurations;
+import com.minecolonies.api.util.BlockUtils;
+import com.minecolonies.api.util.StructureWrapper;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockHorizontal;
 import net.minecraft.block.properties.PropertyDirection;
@@ -96,7 +96,7 @@ public final class ConstructionTapeHelper
      * @param building the building.
      * @param world the world.
      */
-    public static void placeConstructionTape(@NotNull AbstractBuilding building, @NotNull World world)
+    public static void placeConstructionTape(@NotNull IBuilding building, @NotNull World world)
     {
         placeConstructionTape(new WorkOrderBuild(building, 1), world);
     }
@@ -208,7 +208,7 @@ public final class ConstructionTapeHelper
      * @param building the building.
      * @param world the world.
      */
-    public static void removeConstructionTape(@NotNull AbstractBuilding building, @NotNull World world)
+    public static void removeConstructionTape(@NotNull IBuilding building, @NotNull World world)
     {
         removeConstructionTape(new WorkOrderBuild(building, 1), world);
     }

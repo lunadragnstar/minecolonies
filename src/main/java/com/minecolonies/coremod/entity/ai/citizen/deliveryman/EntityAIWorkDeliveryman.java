@@ -1,16 +1,18 @@
 package com.minecolonies.coremod.entity.ai.citizen.deliveryman;
 
+import com.minecolonies.api.colony.building.IBuilding;
 import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.buildings.*;
 import com.minecolonies.coremod.colony.jobs.JobDeliveryman;
-import com.minecolonies.coremod.entity.ai.basic.AbstractEntityAIInteract;
+import com.minecolonies.skeleton.ai.AbstractEntityAIInteract;
 import com.minecolonies.coremod.entity.ai.item.handling.ItemStorage;
-import com.minecolonies.coremod.entity.ai.util.AIState;
-import com.minecolonies.coremod.entity.ai.util.AITarget;
+import com.minecolonies.api.util.AIState;
+import com.minecolonies.api.util.AITarget;
 import com.minecolonies.coremod.inventory.InventoryCitizen;
 import com.minecolonies.coremod.tileentities.TileEntityColonyBuilding;
-import com.minecolonies.coremod.util.InventoryUtils;
-import com.minecolonies.coremod.util.Utils;
+import com.minecolonies.api.util.InventoryUtils;
+import com.minecolonies.api.util.Utils;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingWorker;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityChest;
@@ -25,7 +27,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import static com.minecolonies.coremod.entity.ai.util.AIState.*;
+import static com.minecolonies.api.util.AIState.*;
 
 /**
  * Performs deliveryman work.
@@ -136,7 +138,7 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
         final Colony colony = getOwnBuilding().getColony();
         if (colony != null)
         {
-            final AbstractBuilding building = colony.getBuilding(gatherTarget);
+            final IBuilding building = colony.getBuilding(gatherTarget);
             if (building == null)
             {
                 gatherTarget = null;
@@ -175,7 +177,7 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      * @param building building to gather it from.
      * @return true when finished.
      */
-    private boolean gatherFromBuilding(@NotNull final AbstractBuilding building)
+    private boolean gatherFromBuilding(@NotNull final IBuilding building)
     {
         if (currentSlot >= building.getTileEntity().getSizeInventory())
         {
@@ -203,7 +205,7 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      * @param localAlreadyKept already kept items.
      * @return true if deliveryman should leave it behind.
      */
-    private static boolean buildingRequiresCertainAmountOfItem(AbstractBuilding building, ItemStack stack, List<ItemStorage> localAlreadyKept)
+    private static boolean buildingRequiresCertainAmountOfItem(IBuilding building, ItemStack stack, List<ItemStorage> localAlreadyKept)
     {
         for (final Map.Entry<ItemStorage, Integer> entry : building.getRequiredItemsAndAmount().entrySet())
         {
@@ -227,7 +229,7 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      * @param localAlreadyKept already kept resources.
      * @return true if required.
      */
-    public static boolean workerRequiresItem(AbstractBuilding building, ItemStack stack, List<ItemStorage> localAlreadyKept)
+    public static boolean workerRequiresItem(IBuilding building, ItemStack stack, List<ItemStorage> localAlreadyKept)
     {
         return (building instanceof BuildingBuilder && ((BuildingBuilder) building).requiresResourceForBuilding(stack))
                 || (building instanceof AbstractBuildingWorker && ((AbstractBuildingWorker) building).neededForWorker(stack))
@@ -247,11 +249,11 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
             return null;
         }
 
-        final Collection<AbstractBuilding> buildingList = worker.getColony().getBuildings().values();
+        final Collection<IBuilding> buildingList = worker.getColony().getBuildings().values();
         final Object[] buildingArray = buildingList.toArray();
 
         final int random = worker.getRandom().nextInt(buildingArray.length);
-        final AbstractBuilding building = (AbstractBuilding) buildingArray[random];
+        final IBuilding building = (IBuilding) buildingArray[random];
 
         if (building instanceof BuildingWareHouse || building instanceof BuildingTownHall)
         {
@@ -289,7 +291,7 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
         final AbstractBuildingWorker ownBuilding = getOwnBuilding();
         if (ownBuilding instanceof BuildingDeliveryman)
         {
-            final AbstractBuilding buildingToDeliver = ((BuildingDeliveryman) ownBuilding).getBuildingToDeliver();
+            final IBuilding buildingToDeliver = ((BuildingDeliveryman) ownBuilding).getBuildingToDeliver();
             if (buildingToDeliver != null)
             {
                 if (!worker.isWorkerAtSiteWithMove(buildingToDeliver.getLocation(), MIN_DISTANCE_TO_WAREHOUSE))
@@ -343,7 +345,7 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
         final AbstractBuildingWorker ownBuilding = getOwnBuilding();
         if (ownBuilding instanceof BuildingDeliveryman)
         {
-            final AbstractBuilding buildingToDeliver = ((BuildingDeliveryman) ownBuilding).getBuildingToDeliver();
+            final IBuilding buildingToDeliver = ((BuildingDeliveryman) ownBuilding).getBuildingToDeliver();
             if (buildingToDeliver != null)
             {
                 final boolean ableToDeliver = wareHouse.getTileEntity().checkInWareHouse(buildingToDeliver, false);
@@ -364,7 +366,7 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
         final AbstractBuildingWorker ownBuilding = getOwnBuilding();
         if (ownBuilding instanceof BuildingDeliveryman)
         {
-            final AbstractBuilding buildingToDeliver = ((BuildingDeliveryman) ownBuilding).getBuildingToDeliver();
+            final IBuilding buildingToDeliver = ((BuildingDeliveryman) ownBuilding).getBuildingToDeliver();
             if (buildingToDeliver != null)
             {
                 if (itemsToDeliver.isEmpty() && hasTools(buildingToDeliver))
@@ -392,7 +394,7 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      * @param buildingToDeliver the building to deliver to.
      * @return true if is ready to deliver.
      */
-    private boolean hasTools(@NotNull final AbstractBuilding buildingToDeliver)
+    private boolean hasTools(@NotNull final IBuilding buildingToDeliver)
     {
         final String requiredTool = buildingToDeliver.getRequiredTool();
         if (requiredTool.isEmpty())
@@ -416,7 +418,7 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      * @param buildingToDeliver building to deliver to.
      * @return true if continue, false if not succuesful
      */
-    private boolean gatherItems(@NotNull final AbstractBuilding buildingToDeliver)
+    private boolean gatherItems(@NotNull final IBuilding buildingToDeliver)
     {
         BlockPos position;
         if (itemsToDeliver.isEmpty())
@@ -493,7 +495,7 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
 
         final AbstractBuildingWorker ownBuilding = getOwnBuilding();
 
-        @Nullable final AbstractBuilding buildingToDeliver = wareHouse.getTileEntity().getTask();
+        @Nullable final IBuilding buildingToDeliver = wareHouse.getTileEntity().getTask();
         if (ownBuilding instanceof BuildingDeliveryman)
         {
             if (buildingToDeliver == null)
@@ -522,8 +524,8 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
             return false;
         }
 
-        final Map<BlockPos, AbstractBuilding> buildings = job.getColony().getBuildings();
-        for (final AbstractBuilding building : buildings.values())
+        final Map<BlockPos, IBuilding> buildings = job.getColony().getBuildings();
+        for (final IBuilding building : buildings.values())
         {
             if(building == null)
             {

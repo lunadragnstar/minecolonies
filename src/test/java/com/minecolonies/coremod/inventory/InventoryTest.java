@@ -1,6 +1,6 @@
 package com.minecolonies.coremod.inventory;
 
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
+import com.minecolonies.api.colony.building.IBuilding;
 import com.minecolonies.coremod.tileentities.TileEntityColonyBuilding;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.Item;
@@ -21,7 +21,7 @@ public class InventoryTest
     private IInventory inventory;
 
     @Mock
-    private AbstractBuilding building;
+    private IBuilding building;
 
     @Before
     public void setupInventories()

@@ -1,15 +1,18 @@
 package com.minecolonies.coremod.colony;
 
+import com.minecolonies.api.citizen.IEntityCitizen;
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.building.IBuilding;
+import com.minecolonies.api.permission.Player;
+import com.minecolonies.api.permission.Rank;
 import com.minecolonies.coremod.MineColonies;
-import com.minecolonies.coremod.achievements.ModAchievements;
+import com.minecolonies.coremod.achievements.ModAchievementsInit;
 import com.minecolonies.coremod.blocks.AbstractBlockHut;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
-import com.minecolonies.coremod.colony.permissions.Permissions;
-import com.minecolonies.coremod.configuration.Configurations;
-import com.minecolonies.coremod.entity.EntityCitizen;
-import com.minecolonies.coremod.util.AchievementUtils;
-import com.minecolonies.coremod.util.LanguageHandler;
-import com.minecolonies.coremod.util.Log;
+import com.minecolonies.skeleton.colony.building.AbstractBuilding;
+import com.minecolonies.api.configurations.Configurations;
+import com.minecolonies.api.util.AchievementUtils;
+import com.minecolonies.api.util.LanguageHandler;
+import com.minecolonies.api.util.Log;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
@@ -112,10 +115,10 @@ public final class ColonyManager
 
         final String colonyName = LanguageHandler.format("com.minecolonies.coremod.gui.townHall.defaultName", player.getDisplayNameString());
         colony.setName(colonyName);
-        colony.getPermissions().setPlayerRank(player.getGameProfile().getId(), Permissions.Rank.OWNER, w);
+        colony.getPermissions().setPlayerRank(player.getGameProfile().getId(), Rank.OWNER, w);
 
-        colony.triggerAchievement(ModAchievements.achievementGetSupply);
-        colony.triggerAchievement(ModAchievements.achievementTownhall);
+        colony.triggerAchievement(ModAchievementsInit.achievementGetSupply);
+        colony.triggerAchievement(ModAchievementsInit.achievementTownhall);
 
         markDirty();
 
@@ -150,16 +153,16 @@ public final class ColonyManager
             for (final CitizenData citizenData : new ArrayList<>(colony.getCitizens().values()))
             {
                 Log.getLogger().info("Kill Citizen " + citizenData.getName());
-                final EntityCitizen entityCitizen = citizenData.getCitizenEntity();
-                if (entityCitizen != null)
+                final IEntityCitizen IEntityCitizen = citizenData.getCitizenEntity();
+                if (IEntityCitizen != null)
                 {
-                    final World world = entityCitizen.getEntityWorld();
+                    final World world = IEntityCitizen.getEntityWorld();
                     citizenData.getCitizenEntity().onDeath(CONSOLE_DAMAGE_SOURCE);
                     colonyWorlds.add(world);
                 }
             }
             Log.getLogger().info("Removing buildings for " + id);
-            for (final AbstractBuilding building : new ArrayList<>(colony.getBuildings().values()))
+            for (final IBuilding building : new ArrayList<>(colony.getBuildings().values()))
             {
 
                 final BlockPos location = building.getLocation();
@@ -208,12 +211,12 @@ public final class ColonyManager
      * @param pos Block position.
      * @return AbstractBuilding at the given location.
      */
-    public static AbstractBuilding getBuilding(@NotNull final World w, @NotNull final BlockPos pos)
+    public static IBuilding getBuilding(@NotNull final World w, @NotNull final BlockPos pos)
     {
         @Nullable final Colony colony = getColony(w, pos);
         if (colony != null)
         {
-            final AbstractBuilding building = colony.getBuilding(pos);
+            final IBuilding building = colony.getBuilding(pos);
             if (building != null)
             {
                 return building;
@@ -223,7 +226,7 @@ public final class ColonyManager
         //  Fallback - there might be a AbstractBuilding for this block, but it's outside of it's owning colony's radius.
         for (@NotNull final Colony otherColony : getColonies(w))
         {
-            final AbstractBuilding building = otherColony.getBuilding(pos);
+            final IBuilding building = otherColony.getBuilding(pos);
             if (building != null)
             {
                 return building;
@@ -460,8 +463,8 @@ public final class ColonyManager
     {
         for (@NotNull final ColonyView c : colonyViews)
         {
-            final Permissions.Player p = c.getPlayers().get(owner);
-            if (p != null && p.getRank().equals(Permissions.Rank.OWNER))
+            final Player p = c.getPlayers().get(owner);
+            if (p != null && p.getRank().equals(Rank.OWNER))
             {
                 return c;
             }

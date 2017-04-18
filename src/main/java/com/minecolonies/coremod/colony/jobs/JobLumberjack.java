@@ -1,9 +1,9 @@
 package com.minecolonies.coremod.colony.jobs;
 
 import com.minecolonies.api.citizen.lumberjack.tree.ITree;
-import com.minecolonies.coremod.client.render.RenderBipedCitizen;
+import com.minecolonies.api.client.model.CitizenModel;
 import com.minecolonies.coremod.colony.CitizenData;
-import com.minecolonies.coremod.entity.ai.basic.AbstractAISkeleton;
+import com.minecolonies.skeleton.ai.AbstractAISkeleton;
 import com.minecolonies.coremod.entity.ai.citizen.lumberjack.EntityAIWorkLumberjack;
 import com.minecolonies.coremod.entity.ai.citizen.lumberjack.Tree;
 import net.minecraft.nbt.NBTTagCompound;
@@ -61,15 +61,15 @@ public class JobLumberjack extends AbstractJob
     }
 
     /**
-     * Get the RenderBipedCitizen.Model to use when the Citizen performs this job role.
+     * Get the RenderBipedCitizen.CitizenModel to use when the Citizen performs this job role.
      *
-     * @return Model of the citizen.
+     * @return CitizenModel of the citizen.
      */
     @NotNull
     @Override
-    public RenderBipedCitizen.Model getModel()
+    public CitizenModel getModel()
     {
-        return RenderBipedCitizen.Model.LUMBERJACK;
+        return CitizenModel.LUMBERJACK;
     }
 
     /**

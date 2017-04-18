@@ -2,7 +2,7 @@ package com.minecolonies.coremod.commands;
 
 import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.permissions.Permissions;
-import com.minecolonies.coremod.util.TeleportToColony;
+import com.minecolonies.api.util.TeleportToColony;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;

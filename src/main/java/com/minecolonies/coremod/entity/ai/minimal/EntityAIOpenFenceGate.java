@@ -1,6 +1,6 @@
 package com.minecolonies.coremod.entity.ai.minimal;
 
-import com.minecolonies.coremod.util.SoundUtils;
+import com.minecolonies.api.util.SoundUtils;
 import net.minecraft.block.BlockFenceGate;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.EntityLiving;

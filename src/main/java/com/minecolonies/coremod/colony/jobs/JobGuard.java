@@ -1,10 +1,10 @@
 package com.minecolonies.coremod.colony.jobs;
 
-import com.minecolonies.coremod.client.render.RenderBipedCitizen;
+import com.minecolonies.api.client.model.CitizenModel;
+import com.minecolonies.api.colony.building.IBuilding;
 import com.minecolonies.coremod.colony.CitizenData;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
 import com.minecolonies.coremod.colony.buildings.BuildingGuardTower;
-import com.minecolonies.coremod.entity.ai.basic.AbstractAISkeleton;
+import com.minecolonies.skeleton.ai.AbstractAISkeleton;
 import com.minecolonies.coremod.entity.ai.citizen.guard.EntityAIMeleeGuard;
 import com.minecolonies.coremod.entity.ai.citizen.guard.EntityAIRangeGuard;
 import org.jetbrains.annotations.NotNull;
@@ -40,9 +40,9 @@ public class JobGuard extends AbstractJob
 
     @NotNull
     @Override
-    public RenderBipedCitizen.Model getModel()
+    public CitizenModel getModel()
     {
-        final AbstractBuilding building = getCitizen().getWorkBuilding();
+        final IBuilding building = getCitizen().getWorkBuilding();
         if (building instanceof BuildingGuardTower)
         {
             BuildingGuardTower.GuardJob job = ((BuildingGuardTower) building).getJob();
@@ -53,11 +53,11 @@ public class JobGuard extends AbstractJob
 
             if (job == BuildingGuardTower.GuardJob.KNIGHT)
             {
-                return RenderBipedCitizen.Model.KNIGHT_GUARD;
+                return CitizenModel.KNIGHT_GUARD;
             }
-            return RenderBipedCitizen.Model.ARCHER_GUARD;
+            return CitizenModel.ARCHER_GUARD;
         }
-        return RenderBipedCitizen.Model.ARCHER_GUARD;
+        return CitizenModel.ARCHER_GUARD;
     }
 
     /**
@@ -86,7 +86,7 @@ public class JobGuard extends AbstractJob
     @Override
     public AbstractAISkeleton<? extends AbstractJob> generateAI()
     {
-        final AbstractBuilding building = getCitizen().getWorkBuilding();
+        final IBuilding building = getCitizen().getWorkBuilding();
         if (building instanceof BuildingGuardTower)
         {
             final BuildingGuardTower.GuardJob job = ((BuildingGuardTower) building).getJob();

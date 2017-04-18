@@ -1,25 +1,25 @@
 package com.minecolonies.coremod.entity.ai.citizen.builder;
 
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
-import com.minecolonies.coremod.colony.buildings.AbstractBuildingWorker;
+import com.minecolonies.api.colony.building.IBuilding;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingWorker;
 import com.minecolonies.coremod.colony.buildings.BuildingBuilder;
 import com.minecolonies.coremod.colony.buildings.utils.BuildingBuilderResource;
 import com.minecolonies.coremod.colony.jobs.JobBuilder;
 import com.minecolonies.coremod.colony.workorders.WorkOrderBuild;
 import com.minecolonies.coremod.colony.workorders.WorkOrderBuildDecoration;
-import com.minecolonies.coremod.entity.ai.basic.AbstractEntityAIStructure;
-import com.minecolonies.coremod.entity.ai.util.AIState;
-import com.minecolonies.coremod.entity.ai.util.AITarget;
-import com.minecolonies.coremod.util.BlockUtils;
-import com.minecolonies.coremod.util.LanguageHandler;
-import com.minecolonies.coremod.util.Log;
+import com.minecolonies.skeleton.ai.AbstractEntityAIStructure;
+import com.minecolonies.api.util.AIState;
+import com.minecolonies.api.util.AITarget;
+import com.minecolonies.api.util.BlockUtils;
+import com.minecolonies.api.util.LanguageHandler;
+import com.minecolonies.api.util.Log;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static com.minecolonies.coremod.entity.ai.util.AIState.*;
+import static com.minecolonies.api.util.AIState.*;
 
 /**
  * AI class for the builder.
@@ -121,7 +121,7 @@ public class EntityAIStructureBuilder extends AbstractEntityAIStructure<JobBuild
             }
             else
             {
-                final AbstractBuilding building = job.getColony().getBuilding(wo.getBuildingLocation());
+                final IBuilding building = job.getColony().getBuilding(wo.getBuildingLocation());
                 if (building == null)
                 {
                     Log.getLogger().error(

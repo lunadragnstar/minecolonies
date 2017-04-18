@@ -9,13 +9,14 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.common.util.Constants;
+import net.minecraftforge.common.util.INBTSerializable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
  * The custom chest of the field.
  */
-public class InventoryField implements IInventory
+public class InventoryField implements IInventory, INBTSerializable<NBTTagCompound>
 {
     /**
      * NBTTag to store the slot.
@@ -82,33 +83,6 @@ public class InventoryField implements IInventory
             return true;
         }
         return false;
-    }
-
-    /**
-     * Used to retrieve variables.
-     *
-     * @param compound with the give tag.
-     */
-    public void readFromNBT(@NotNull final NBTTagCompound compound)
-    {
-        final NBTTagList nbttaglist = compound.getTagList(TAG_ITEMS, Constants.NBT.TAG_COMPOUND);
-        this.stackResult = new ItemStack[this.getSizeInventory()];
-
-        for (int i = 0; i < nbttaglist.tagCount(); ++i)
-        {
-            final NBTTagCompound nbttagcompound = nbttaglist.getCompoundTagAt(i);
-            final int j = nbttagcompound.getByte(TAG_SLOT) & Byte.MAX_VALUE;
-
-            if (j != NO_SLOT && j < this.stackResult.length)
-            {
-                this.stackResult[j] = ItemStack.loadItemStackFromNBT(nbttagcompound);
-            }
-        }
-
-        if (compound.hasKey(TAG_CUSTOM_NAME, Constants.NBT.TAG_STRING))
-        {
-            this.customName = compound.getString(TAG_CUSTOM_NAME);
-        }
     }
 
     @Override
@@ -292,36 +266,6 @@ public class InventoryField implements IInventory
     }
 
     /**
-     * Used to store variables.
-     *
-     * @param compound with the given tag.
-     */
-    public void writeToNBT(@NotNull final NBTTagCompound compound)
-    {
-        @NotNull final NBTTagList nbttaglist = new NBTTagList();
-
-        for (int i = 0; i < this.stackResult.length; ++i)
-        {
-            if (this.stackResult[i] != null)
-            {
-                @NotNull final NBTTagCompound nbttagcompound = new NBTTagCompound();
-                nbttagcompound.setByte(TAG_SLOT, (byte) i);
-                this.stackResult[i].writeToNBT(nbttagcompound);
-                nbttaglist.appendTag(nbttagcompound);
-            }
-        }
-
-        compound.setTag(TAG_ITEMS, nbttaglist);
-
-        if (this.hasCustomName())
-        {
-            compound.setString(TAG_CUSTOM_NAME, this.customName);
-        }
-
-        compound.setTag(TAG_INVENTORY, nbttaglist);
-    }
-
-    /**
      * Setter of the customName of the inventory.
      *
      * @param customName the name to set.
@@ -354,5 +298,58 @@ public class InventoryField implements IInventory
     public String getName()
     {
         return this.hasCustomName() ? this.customName : "field.inventory";
+    }
+
+    @Override
+    public NBTTagCompound serializeNBT()
+    {
+        NBTTagCompound compound = new NBTTagCompound();
+
+        @NotNull final NBTTagList nbttaglist = new NBTTagList();
+
+        for (int i = 0; i < this.stackResult.length; ++i)
+        {
+            if (this.stackResult[i] != null)
+            {
+                @NotNull final NBTTagCompound nbttagcompound = new NBTTagCompound();
+                nbttagcompound.setByte(TAG_SLOT, (byte) i);
+                this.stackResult[i].writeToNBT(nbttagcompound);
+                nbttaglist.appendTag(nbttagcompound);
+            }
+        }
+
+        compound.setTag(TAG_ITEMS, nbttaglist);
+
+        if (this.hasCustomName())
+        {
+            compound.setString(TAG_CUSTOM_NAME, this.customName);
+        }
+
+        compound.setTag(TAG_INVENTORY, nbttaglist);
+
+        return compound;
+    }
+
+    @Override
+    public void deserializeNBT(final NBTTagCompound compound)
+    {
+        final NBTTagList nbttaglist = compound.getTagList(TAG_ITEMS, Constants.NBT.TAG_COMPOUND);
+        this.stackResult = new ItemStack[this.getSizeInventory()];
+
+        for (int i = 0; i < nbttaglist.tagCount(); ++i)
+        {
+            final NBTTagCompound nbttagcompound = nbttaglist.getCompoundTagAt(i);
+            final int j = nbttagcompound.getByte(TAG_SLOT) & Byte.MAX_VALUE;
+
+            if (j != NO_SLOT && j < this.stackResult.length)
+            {
+                this.stackResult[j] = ItemStack.loadItemStackFromNBT(nbttagcompound);
+            }
+        }
+
+        if (compound.hasKey(TAG_CUSTOM_NAME, Constants.NBT.TAG_STRING))
+        {
+            this.customName = compound.getString(TAG_CUSTOM_NAME);
+        }
     }
 }

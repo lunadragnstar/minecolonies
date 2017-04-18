@@ -1,9 +1,9 @@
 package com.minecolonies.coremod.commands;
 
+import com.minecolonies.api.permission.Rank;
 import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.permissions.Permissions;
-import com.minecolonies.coremod.configuration.Configurations;
+import com.minecolonies.api.configurations.Configurations;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.fml.common.FMLCommonHandler;
@@ -103,7 +103,7 @@ public abstract class AbstractSingleCommand implements ISubCommand
      */
     public boolean canRankUseCommand(@NotNull final Colony colony, @NotNull final EntityPlayer player)
     {
-        return colony.getPermissions().getRank(player).equals(Permissions.Rank.OFFICER) || colony.getPermissions().getRank(player).equals(Permissions.Rank.OWNER);
+        return colony.getPermissions().getRank(player).equals(Rank.OFFICER) || colony.getPermissions().getRank(player).equals(Rank.OWNER);
     }
 
     /**

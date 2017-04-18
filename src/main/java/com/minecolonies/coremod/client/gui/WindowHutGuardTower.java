@@ -10,7 +10,7 @@ import com.minecolonies.coremod.colony.buildings.BuildingGuardTower;
 import com.minecolonies.api.util.Constants;
 import com.minecolonies.coremod.network.messages.GuardScepterMessage;
 import com.minecolonies.coremod.network.messages.GuardTaskMessage;
-import com.minecolonies.coremod.util.LanguageHandler;
+import com.minecolonies.api.util.LanguageHandler;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.NotNull;

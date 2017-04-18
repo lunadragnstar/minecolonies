@@ -1,7 +1,7 @@
 package com.minecolonies.coremod.colony.jobs;
 
 import com.minecolonies.coremod.colony.CitizenData;
-import com.minecolonies.coremod.util.StructureWrapper;
+import com.minecolonies.api.util.StructureWrapper;
 
 /**
  * Common job object for all structure AIs.

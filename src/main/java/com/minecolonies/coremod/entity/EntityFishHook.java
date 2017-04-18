@@ -1,6 +1,7 @@
 package com.minecolonies.coremod.entity;
 
-import com.minecolonies.coremod.util.MathUtils;
+import com.minecolonies.api.citizen.IEntityCitizen;
+import com.minecolonies.api.util.MathUtils;
 import net.minecraft.block.material.Material;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
@@ -700,7 +701,7 @@ public final class EntityFishHook extends Entity
      * @param citizen the fisherman getting the loot.
      * @return an ItemStack randomly from the loot table.
      */
-    private ItemStack getFishingLoot(final EntityCitizen citizen)
+    private ItemStack getFishingLoot(final IEntityCitizen citizen)
     {
         //Reduce random to get more fish drops
         final int random = this.worldObj.rand.nextInt(INCREASE_RARENESS_MODIFIER);

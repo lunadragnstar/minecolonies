@@ -1,14 +1,17 @@
 package com.minecolonies.coremod.colony;
 
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
-import com.minecolonies.coremod.colony.buildings.AbstractBuildingWorker;
+import com.minecolonies.api.citizen.ICitizenData;
+import com.minecolonies.api.citizen.IEntityCitizen;
+import com.minecolonies.api.colony.building.IBuilding;
+import com.minecolonies.api.configurations.Configurations;
+import com.minecolonies.api.job.IJob;
+import com.minecolonies.api.util.BlockPosUtil;
+import com.minecolonies.api.util.Log;
 import com.minecolonies.coremod.colony.buildings.BuildingHome;
 import com.minecolonies.coremod.colony.jobs.AbstractJob;
-import com.minecolonies.coremod.configuration.Configurations;
 import com.minecolonies.coremod.entity.EntityCitizen;
-import com.minecolonies.coremod.entity.ai.basic.AbstractAISkeleton;
-import com.minecolonies.coremod.util.BlockPosUtil;
-import com.minecolonies.coremod.util.Log;
+import com.minecolonies.skeleton.ai.AbstractAISkeleton;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
@@ -20,7 +23,7 @@ import java.util.Random;
 /**
  * Extra data for Citizens.
  */
-public class CitizenData
+public class CitizenData implements com.minecolonies.api.citizen.ICitizenData
 {
     private static final float  MAX_HEALTH              = 20.0F;
     /**
@@ -54,14 +57,14 @@ public class CitizenData
     private       int                    textureId;
     private final Colony                 colony;
     @Nullable
-    private       BuildingHome           homeBuilding;
+    private       IBuilding           homeBuilding;
     @Nullable
     private       AbstractBuildingWorker workBuilding;
-    private       AbstractJob            job;
+    private       IJob            job;
     private       boolean                dirty;
     //Citizen
     @Nullable
-    private       EntityCitizen          entity;
+    private       IEntityCitizen          entity;
     /**
      * Attributes, which influence the workers behaviour.
      * May be added more later.
@@ -105,10 +108,10 @@ public class CitizenData
      * @return CitizenData.
      */
     @NotNull
-    public static CitizenData createFromNBT(@NotNull final NBTTagCompound compound, final Colony colony)
+    public static ICitizenData createFromNBT(@NotNull final NBTTagCompound compound, final Colony colony)
     {
         final int id = compound.getInteger(TAG_ID);
-        final @NotNull CitizenData citizen = new CitizenData(id, colony);
+        final @NotNull ICitizenData citizen = new CitizenData(id, colony);
         citizen.readFromNBT(compound);
         return citizen;
     }
@@ -118,6 +121,7 @@ public class CitizenData
      *
      * @param compound NBT-Tag compound.
      */
+    @Override
     public void readFromNBT(@NotNull final NBTTagCompound compound)
     {
         name = compound.getString(TAG_NAME);
@@ -149,8 +153,9 @@ public class CitizenData
      *
      * @return {@link EntityCitizen} of the citizen data.
      */
+    @Override
     @Nullable
-    public EntityCitizen getCitizenEntity()
+    public IEntityCitizen getCitizenEntity()
     {
         return entity;
     }
@@ -160,7 +165,8 @@ public class CitizenData
      *
      * @param citizen {@link EntityCitizen} instance of the citizen data.
      */
-    public void setCitizenEntity(final EntityCitizen citizen)
+    @Override
+    public void setCitizenEntity(final IEntityCitizen citizen)
     {
         entity = citizen;
         markDirty();
@@ -169,6 +175,7 @@ public class CitizenData
     /**
      * Marks the instance dirty.
      */
+    @Override
     public void markDirty()
     {
         dirty = true;
@@ -206,9 +213,10 @@ public class CitizenData
      *
      * @param entity Entity to initialize from.
      */
-    public void initializeFromEntity(@NotNull final EntityCitizen entity)
+    @Override
+    public void initializeFromEntity(@NotNull final IEntityCitizen entity)
     {
-        final Random rand = entity.getRNG();
+        final Random rand = entity.getRandom();
 
         this.entity = entity;
 
@@ -216,7 +224,7 @@ public class CitizenData
         female = rand.nextBoolean();
         name = generateName(rand);
 
-        textureId = entity.worldObj.rand.nextInt(Integer.MAX_VALUE);
+        textureId = entity.getEntityWorld().rand.nextInt(Integer.MAX_VALUE);
         health = entity.getHealth();
         maxHealth = entity.getMaxHealth();
         experience = 0;
@@ -288,6 +296,7 @@ public class CitizenData
      *
      * @return id of the citizen.
      */
+    @Override
     public int getId()
     {
         return id;
@@ -298,6 +307,7 @@ public class CitizenData
      *
      * @return colony of the citizen.
      */
+    @Override
     public Colony getColony()
     {
         return colony;
@@ -308,6 +318,7 @@ public class CitizenData
      *
      * @return name of the citizen.
      */
+    @Override
     public String getName()
     {
         return name;
@@ -318,6 +329,7 @@ public class CitizenData
      *
      * @return true for female, false for male.
      */
+    @Override
     public boolean isFemale()
     {
         return female;
@@ -328,6 +340,7 @@ public class CitizenData
      *
      * @return texture ID.
      */
+    @Override
     public int getTextureId()
     {
         return textureId;
@@ -338,6 +351,7 @@ public class CitizenData
      *
      * @param xp the amount of xp to add.
      */
+    @Override
     public void addExperience(final double xp)
     {
         this.experience += xp;
@@ -346,6 +360,7 @@ public class CitizenData
     /**
      * Sets the level of the citizen.
      */
+    @Override
     public void increaseLevel()
     {
         this.level += 1;
@@ -356,6 +371,7 @@ public class CitizenData
      *
      * @return true when dirty, otherwise false.
      */
+    @Override
     public boolean isDirty()
     {
         return dirty;
@@ -364,6 +380,7 @@ public class CitizenData
     /**
      * Markt the instance not dirty.
      */
+    @Override
     public void clearDirty()
     {
         dirty = false;
@@ -375,7 +392,8 @@ public class CitizenData
      *
      * @param building building that is destroyed.
      */
-    public void onRemoveBuilding(final AbstractBuilding building)
+    @Override
+    public void onRemoveBuilding(final IBuilding building)
     {
         if (getHomeBuilding() == building)
         {
@@ -393,8 +411,9 @@ public class CitizenData
      *
      * @return home building.
      */
+    @Override
     @Nullable
-    public BuildingHome getHomeBuilding()
+    public IBuilding getHomeBuilding()
     {
         return homeBuilding;
     }
@@ -404,7 +423,8 @@ public class CitizenData
      *
      * @param building home building.
      */
-    public void setHomeBuilding(@Nullable final BuildingHome building)
+    @Override
+    public void setHomeBuilding(@Nullable final IBuilding building)
     {
         if (homeBuilding != null && building != null && homeBuilding != building)
         {
@@ -422,6 +442,7 @@ public class CitizenData
      *
      * @return home building of a citizen.
      */
+    @Override
     @Nullable
     public AbstractBuildingWorker getWorkBuilding()
     {
@@ -433,6 +454,7 @@ public class CitizenData
      *
      * @param building work building.
      */
+    @Override
     public void setWorkBuilding(@Nullable final AbstractBuildingWorker building)
     {
         if (workBuilding != null && building != null && workBuilding != building)
@@ -455,10 +477,10 @@ public class CitizenData
             }
             else if (job != null)
             {
-                final EntityCitizen citizen = getCitizenEntity();
+                final IEntityCitizen citizen = getCitizenEntity();
                 if (citizen != null)
                 {
-                    citizen.tasks.removeTask(citizen.tasks.taskEntries.stream().filter(task -> task.action instanceof AbstractAISkeleton).findFirst().orElse(null).action);
+                    citizen.getTasks().removeTask(citizen.getTasks().taskEntries.stream().filter(task -> task.action instanceof AbstractAISkeleton).findFirst().orElse(null).action);
                 }
                 //  No place of employment, get rid of our job
                 setJob(null);
@@ -472,6 +494,7 @@ public class CitizenData
     /**
      * Sets {@link EntityCitizen} to null for the instance.
      */
+    @Override
     public void clearCitizenEntity()
     {
         entity = null;
@@ -482,7 +505,8 @@ public class CitizenData
      *
      * @return Job of the citizen.
      */
-    public AbstractJob getJob()
+    @Override
+    public IJob getJob()
     {
         return job;
     }
@@ -492,11 +516,12 @@ public class CitizenData
      *
      * @param job Job of the citizen.
      */
-    public void setJob(final AbstractJob job)
+    @Override
+    public void setJob(final IJob job)
     {
         this.job = job;
 
-        @Nullable final EntityCitizen localEntity = getCitizenEntity();
+        @Nullable final IEntityCitizen localEntity = getCitizenEntity();
         if (localEntity != null)
         {
             localEntity.onJobChanged(job);
@@ -512,8 +537,9 @@ public class CitizenData
      * @param <J>  The job type returned.
      * @return the job this citizen has.
      */
+    @Override
     @Nullable
-    public <J extends AbstractJob> J getJob(@NotNull final Class<J> type)
+    public <J extends IJob> J getJob(@NotNull final Class<J> type)
     {
         try
         {
@@ -530,6 +556,7 @@ public class CitizenData
      *
      * @param compound NBT-Tag compound.
      */
+    @Override
     public void writeToNBT(@NotNull final NBTTagCompound compound)
     {
         compound.setInteger(TAG_ID, id);
@@ -565,6 +592,7 @@ public class CitizenData
      *
      * @param buf Buffer to write to.
      */
+    @Override
     public void serializeViewNetworkData(@NotNull final ByteBuf buf)
     {
         ByteBufUtils.writeUTF8String(buf, name);
@@ -614,6 +642,7 @@ public class CitizenData
      *
      * @return level of the citizen.
      */
+    @Override
     public int getLevel()
     {
         return level;
@@ -624,6 +653,7 @@ public class CitizenData
      *
      * @param lvl the new level for the citizen.
      */
+    @Override
     public void setLevel(final int lvl)
     {
         this.level = lvl;
@@ -632,6 +662,7 @@ public class CitizenData
     /**
      * Resets the experience and the experience level of the citizen.
      */
+    @Override
     public void resetExperienceAndLevel()
     {
         this.level = 0;
@@ -643,6 +674,7 @@ public class CitizenData
      *
      * @return experience of the citizen.
      */
+    @Override
     public double getExperience()
     {
         return experience;
@@ -653,6 +685,7 @@ public class CitizenData
      *
      * @return citizen Strength value.
      */
+    @Override
     public int getStrength()
     {
         return strength;
@@ -663,6 +696,7 @@ public class CitizenData
      *
      * @return citizen Endurance value.
      */
+    @Override
     public int getEndurance()
     {
         return endurance;
@@ -673,6 +707,7 @@ public class CitizenData
      *
      * @return citizen Charisma value.
      */
+    @Override
     public int getCharisma()
     {
         return charisma;
@@ -683,6 +718,7 @@ public class CitizenData
      *
      * @return citizen Intelligence value.
      */
+    @Override
     public int getIntelligence()
     {
         return intelligence;
@@ -693,6 +729,7 @@ public class CitizenData
      *
      * @return citizen Dexterity value.
      */
+    @Override
     public int getDexterity()
     {
         return dexterity;

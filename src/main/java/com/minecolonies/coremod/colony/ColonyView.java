@@ -1,15 +1,19 @@
 package com.minecolonies.coremod.colony;
 
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.permission.Player;
+import com.minecolonies.api.permission.Rank;
 import com.minecolonies.coremod.MineColonies;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
+import com.minecolonies.skeleton.colony.building.AbstractBuilding;
 import com.minecolonies.coremod.colony.buildings.BuildingTownHall;
 import com.minecolonies.coremod.colony.permissions.Permissions;
-import com.minecolonies.coremod.colony.workorders.AbstractWorkOrder;
-import com.minecolonies.coremod.configuration.Configurations;
+import com.minecolonies.skeleton.workorders.AbstractWorkOrder;
+import com.minecolonies.api.configurations.Configurations;
 import com.minecolonies.coremod.network.messages.PermissionsMessage;
 import com.minecolonies.coremod.network.messages.TownHallRenameMessage;
-import com.minecolonies.coremod.util.BlockPosUtil;
-import com.minecolonies.coremod.util.MathUtils;
+import com.minecolonies.api.util.BlockPosUtil;
+import com.minecolonies.api.util.MathUtils;
+import com.minecolonies.skeleton.workorders.WorkOrderView;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.block.Block;
 import net.minecraft.util.math.BlockPos;
@@ -28,16 +32,16 @@ public final class ColonyView implements IColony
 {
     //  General Attributes
     private final int id;
-    private final Map<Integer, WorkOrderView> workOrders = new HashMap<>();
+    private final Map<Integer, WorkOrderView>          workOrders  = new HashMap<>();
     //  Administration/permissions
     @NotNull
-    private final Permissions.View permissions  = new Permissions.View();
+    private final Permissions.View                     permissions = new Permissions.View();
     @NotNull
     private final Map<BlockPos, AbstractBuilding.View> buildings   = new HashMap<>();
     //  Citizenry
     @NotNull
     private final Map<Integer, CitizenDataView>        citizens    = new HashMap<>();
-    private       String                      name       = "Unknown";
+    private       String                               name        = "Unknown";
     private int      dimensionId;
     private BlockPos center;
     /**
@@ -120,18 +124,18 @@ public final class ColonyView implements IColony
      * Get a copy of the freePositions list.
      * @return the list of free to interact positions.
      */
-    public List<BlockPos> getFreePositions()
+    public Set<BlockPos> getFreePositions()
     {
-        return new ArrayList<>(freePositions);
+        return new HashSet<>(freePositions);
     }
 
     /**
      * Get a copy of the freeBlocks list.
      * @return the list of free to interact blocks.
      */
-    public List<Block> getFreeBlocks()
+    public Set<Block> getFreeBlocks()
     {
-        return new ArrayList<>(freeBlocks);
+        return new HashSet<>(freeBlocks);
     }
 
     /**
@@ -237,12 +241,12 @@ public final class ColonyView implements IColony
 
     /**
      * Returns a map of players in the colony.
-     * Key is the UUID, value is {@link com.minecolonies.coremod.colony.permissions.Permissions.Player}
+     * Key is the UUID, value is {@link Player}
      *
-     * @return Map of UUID's and {@link com.minecolonies.coremod.colony.permissions.Permissions.Player}
+     * @return Map of UUID's and {@link Player}
      */
     @NotNull
-    public Map<UUID, Permissions.Player> getPlayers()
+    public Map<UUID, Player> getPlayers()
     {
         return permissions.getPlayers();
     }
@@ -253,7 +257,7 @@ public final class ColonyView implements IColony
      * @param rank   Rank to get the permission.
      * @param action Permission to get.
      */
-    public void setPermission(final Permissions.Rank rank, @NotNull final Permissions.Action action)
+    public void setPermission(final Rank rank, @NotNull final Permissions.Action action)
     {
         if (permissions.setPermission(rank, action))
         {
@@ -267,7 +271,7 @@ public final class ColonyView implements IColony
      * @param rank   Rank to remove permission from.
      * @param action Action to remove permission of.
      */
-    public void removePermission(final Permissions.Rank rank, @NotNull final Permissions.Action action)
+    public void removePermission(final Rank rank, @NotNull final Permissions.Action action)
     {
         if (permissions.removePermission(rank, action))
         {
@@ -281,7 +285,7 @@ public final class ColonyView implements IColony
      * @param rank   Rank to toggle permission of.
      * @param action Action to toggle permission of.
      */
-    public void togglePermission(final Permissions.Rank rank, @NotNull final Permissions.Action action)
+    public void togglePermission(final Rank rank, @NotNull final Permissions.Action action)
     {
         permissions.togglePermission(rank, action);
         MineColonies.getNetwork().sendToServer(new PermissionsMessage.Permission(this, PermissionsMessage.MessageType.TOGGLE_PERMISSION, rank, action));

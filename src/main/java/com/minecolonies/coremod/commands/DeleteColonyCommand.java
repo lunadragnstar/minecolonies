@@ -1,9 +1,9 @@
 package com.minecolonies.coremod.commands;
 
+import com.minecolonies.api.permission.Rank;
 import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.IColony;
-import com.minecolonies.coremod.colony.permissions.Permissions;
+import com.minecolonies.api.colony.IColony;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
@@ -95,7 +95,7 @@ public class DeleteColonyCommand extends AbstractSingleCommand
     @Override
     public boolean canRankUseCommand(@NotNull final Colony colony, @NotNull final EntityPlayer player)
     {
-        return colony.getPermissions().getRank(player).equals(Permissions.Rank.OWNER);
+        return colony.getPermissions().getRank(player).equals(Rank.OWNER);
     }
 
     @NotNull

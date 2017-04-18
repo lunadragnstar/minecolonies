@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Model holder of the structures.
+ * CitizenModel holder of the structures.
  */
 public class ModelHolder
 {

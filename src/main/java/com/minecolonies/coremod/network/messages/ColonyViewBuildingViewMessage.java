@@ -1,8 +1,8 @@
 package com.minecolonies.coremod.network.messages;
 
+import com.minecolonies.api.colony.building.IBuilding;
 import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
-import com.minecolonies.coremod.util.BlockPosUtil;
+import com.minecolonies.api.util.BlockPosUtil;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.minecraft.util.math.BlockPos;
@@ -34,7 +34,7 @@ public class ColonyViewBuildingViewMessage implements IMessage, IMessageHandler<
      *
      * @param building AbstractBuilding to add or update a view.
      */
-    public ColonyViewBuildingViewMessage(@NotNull final AbstractBuilding building)
+    public ColonyViewBuildingViewMessage(@NotNull final IBuilding building)
     {
         this.colonyId = building.getColony().getID();
         this.buildingId = building.getID();

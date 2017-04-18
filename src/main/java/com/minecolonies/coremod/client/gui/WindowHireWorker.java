@@ -8,11 +8,11 @@ import com.minecolonies.blockout.views.Window;
 import com.minecolonies.coremod.MineColonies;
 import com.minecolonies.coremod.colony.CitizenDataView;
 import com.minecolonies.coremod.colony.ColonyView;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
-import com.minecolonies.coremod.colony.buildings.AbstractBuildingWorker;
+import com.minecolonies.skeleton.colony.building.AbstractBuilding;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingWorker;
 import com.minecolonies.api.util.Constants;
 import com.minecolonies.coremod.network.messages.HireFireMessage;
-import com.minecolonies.coremod.util.LanguageHandler;
+import com.minecolonies.api.util.LanguageHandler;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.NotNull;
 

@@ -1,7 +1,8 @@
 package com.minecolonies.coremod.entity.ai.minimal;
 
+import com.minecolonies.api.citizen.CitizenDesiredActivity;
 import com.minecolonies.coremod.entity.EntityCitizen;
-import com.minecolonies.coremod.util.SoundUtils;
+import com.minecolonies.api.util.SoundUtils;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.math.BlockPos;
@@ -47,7 +48,7 @@ public class EntityAIGoHome extends EntityAIBase
     @Override
     public boolean shouldExecute()
     {
-        return citizen.getDesiredActivity() == EntityCitizen.DesiredActivity.SLEEP
+        return citizen.getDesiredActivity() == CitizenDesiredActivity.SLEEP
                  && !citizen.isAtHome();
     }
 
@@ -59,7 +60,7 @@ public class EntityAIGoHome extends EntityAIBase
     @Override
     public boolean continueExecuting()
     {
-        return !citizen.getNavigator().noPath() && citizen.getDesiredActivity() == EntityCitizen.DesiredActivity.SLEEP;
+        return !citizen.getNavigator().noPath() && citizen.getDesiredActivity() == CitizenDesiredActivity.SLEEP;
     }
 
     @Override

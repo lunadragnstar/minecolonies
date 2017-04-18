@@ -1,11 +1,12 @@
 package com.minecolonies.coremod.colony.buildings;
 
 import com.minecolonies.blockout.views.Window;
-import com.minecolonies.coremod.achievements.ModAchievements;
+import com.minecolonies.coremod.achievements.ModAchievementsInit;
 import com.minecolonies.coremod.client.gui.WindowHomeBuilding;
 import com.minecolonies.coremod.colony.CitizenData;
 import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.ColonyView;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingHut;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
@@ -173,11 +174,11 @@ public class BuildingHome extends AbstractBuildingHut
 
         if (newLevel == 1)
         {
-            this.getColony().triggerAchievement(ModAchievements.achievementBuildingColonist);
+            this.getColony().triggerAchievement(ModAchievementsInit.achievementBuildingColonist);
         }
         if (newLevel >= this.getMaxBuildingLevel())
         {
-            this.getColony().triggerAchievement(ModAchievements.achievementUpgradeColonistMax);
+            this.getColony().triggerAchievement(ModAchievementsInit.achievementUpgradeColonistMax);
         }
     }
 

@@ -2,7 +2,8 @@ package com.minecolonies.coremod.network.messages;
 
 import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.workorders.AbstractWorkOrder;
+import com.minecolonies.skeleton.workorders.AbstractWorkOrder;
+import com.minecolonies.skeleton.workorders.WorkOrderView;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -29,7 +30,7 @@ public class ColonyViewWorkOrderMessage implements IMessage, IMessageHandler<Col
     }
 
     /**
-     * Updates a {@link com.minecolonies.coremod.colony.WorkOrderView} of the workOrders.
+     * Updates a {@link WorkOrderView} of the workOrders.
      *
      * @param colony    colony of the workOrder.
      * @param workOrder workOrder of the colony to update view.

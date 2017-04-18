@@ -1,7 +1,7 @@
 package com.minecolonies.coremod.colony.buildings;
 
 import com.minecolonies.blockout.views.Window;
-import com.minecolonies.coremod.achievements.ModAchievements;
+import com.minecolonies.coremod.achievements.ModAchievementsInit;
 import com.minecolonies.coremod.client.gui.WindowHutMiner;
 import com.minecolonies.coremod.colony.CitizenData;
 import com.minecolonies.coremod.colony.Colony;
@@ -10,8 +10,10 @@ import com.minecolonies.coremod.colony.jobs.AbstractJob;
 import com.minecolonies.coremod.colony.jobs.JobMiner;
 import com.minecolonies.coremod.entity.ai.citizen.miner.Level;
 import com.minecolonies.coremod.entity.ai.item.handling.ItemStorage;
-import com.minecolonies.coremod.util.BlockPosUtil;
-import com.minecolonies.coremod.util.Utils;
+import com.minecolonies.api.util.BlockPosUtil;
+import com.minecolonies.api.util.Utils;
+import com.minecolonies.skeleton.colony.building.AbstractBuilding;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockSlab;
@@ -248,11 +250,11 @@ public class BuildingMiner extends AbstractBuildingWorker
 
         if (newLevel == 1)
         {
-            this.getColony().triggerAchievement(ModAchievements.achievementBuildingMiner);
+            this.getColony().triggerAchievement(ModAchievementsInit.achievementBuildingMiner);
         }
         if (newLevel >= this.getMaxBuildingLevel())
         {
-            this.getColony().triggerAchievement(ModAchievements.achievementUpgradeMinerMax);
+            this.getColony().triggerAchievement(ModAchievementsInit.achievementUpgradeMinerMax);
         }
     }
 

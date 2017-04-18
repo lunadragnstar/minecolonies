@@ -10,8 +10,8 @@ import com.minecolonies.coremod.MineColonies;
 import com.minecolonies.coremod.colony.CitizenDataView;
 import com.minecolonies.api.util.Constants;
 import com.minecolonies.coremod.network.messages.OpenInventoryMessage;
-import com.minecolonies.coremod.util.ExperienceUtils;
-import com.minecolonies.coremod.util.LanguageHandler;
+import com.minecolonies.api.util.ExperienceUtils;
+import com.minecolonies.api.util.LanguageHandler;
 import net.minecraft.client.gui.Gui;
 import org.jetbrains.annotations.NotNull;
 

@@ -1,7 +1,7 @@
 package com.minecolonies.coremod.colony.buildings;
 
 import com.minecolonies.blockout.views.Window;
-import com.minecolonies.coremod.achievements.ModAchievements;
+import com.minecolonies.coremod.achievements.ModAchievementsInit;
 import com.minecolonies.coremod.client.gui.WindowHutWorkerPlaceholder;
 import com.minecolonies.coremod.colony.CitizenData;
 import com.minecolonies.coremod.colony.Colony;
@@ -9,7 +9,9 @@ import com.minecolonies.coremod.colony.ColonyView;
 import com.minecolonies.coremod.colony.jobs.AbstractJob;
 import com.minecolonies.coremod.colony.jobs.JobLumberjack;
 import com.minecolonies.coremod.entity.ai.item.handling.ItemStorage;
-import com.minecolonies.coremod.util.Utils;
+import com.minecolonies.api.util.Utils;
+import com.minecolonies.skeleton.colony.building.AbstractBuilding;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingWorker;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
@@ -91,11 +93,11 @@ public class BuildingLumberjack extends AbstractBuildingWorker
 
         if (newLevel == 1)
         {
-            this.getColony().triggerAchievement(ModAchievements.achievementBuildingLumberjack);
+            this.getColony().triggerAchievement(ModAchievementsInit.achievementBuildingLumberjack);
         }
         if (newLevel >= this.getMaxBuildingLevel())
         {
-            this.getColony().triggerAchievement(ModAchievements.achievementUpgradeLumberjackMax);
+            this.getColony().triggerAchievement(ModAchievementsInit.achievementUpgradeLumberjackMax);
         }
     }
 

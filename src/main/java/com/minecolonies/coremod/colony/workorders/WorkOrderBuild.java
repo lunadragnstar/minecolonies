@@ -1,14 +1,15 @@
 package com.minecolonies.coremod.colony.workorders;
 
+import com.minecolonies.api.colony.building.IBuilding;
 import com.minecolonies.coremod.colony.CitizenData;
 import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
 import com.minecolonies.coremod.colony.buildings.BuildingBuilder;
 import com.minecolonies.coremod.colony.jobs.JobBuilder;
 import com.minecolonies.api.util.Constants;
-import com.minecolonies.coremod.util.BlockPosUtil;
-import com.minecolonies.coremod.util.LanguageHandler;
-import com.minecolonies.coremod.util.Log;
+import com.minecolonies.api.util.BlockPosUtil;
+import com.minecolonies.api.util.LanguageHandler;
+import com.minecolonies.api.util.Log;
+import com.minecolonies.skeleton.workorders.AbstractWorkOrder;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
@@ -56,7 +57,7 @@ public class WorkOrderBuild extends AbstractWorkOrder
      * @param building the building to build.
      * @param level    the level it should have.
      */
-    public WorkOrderBuild(@NotNull final AbstractBuilding building, final int level)
+    public WorkOrderBuild(@NotNull final IBuilding building, final int level)
     {
         super();
         this.buildingLocation = building.getID();

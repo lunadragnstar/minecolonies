@@ -1,5 +1,6 @@
 package com.minecolonies.api.citizen.lumberjack.tree;
 
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.common.util.INBTSerializable;
@@ -73,12 +74,11 @@ public interface ITree extends INBTSerializable<NBTTagCompound>
     void removeStump(BlockPos pos);
 
     /**
-     * Get's the variant of a tree.
-     * A tree may only have 1 variant.
-     *
-     * @return the EnumType variant.
+     * Method called when the tree has been chopped to determine if is a valid sapling to be replaced.
+     * @param stack The stack in the inventory of the LumberJack to check.
+     * @return True when the stack is matching the sapling of this tree.
      */
-    int getVariant();
+    boolean isItemStackMatching(ItemStack stack);
 
     /**
      * Calculates the squareDistance to another Tree.

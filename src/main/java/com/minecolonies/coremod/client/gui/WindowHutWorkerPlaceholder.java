@@ -1,6 +1,6 @@
 package com.minecolonies.coremod.client.gui;
 
-import com.minecolonies.coremod.colony.buildings.AbstractBuildingWorker;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingWorker;
 import com.minecolonies.api.util.Constants;
 import org.jetbrains.annotations.NotNull;
 

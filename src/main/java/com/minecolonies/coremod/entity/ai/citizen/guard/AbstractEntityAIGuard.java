@@ -1,20 +1,20 @@
 package com.minecolonies.coremod.entity.ai.citizen.guard;
 
+import com.minecolonies.api.colony.building.IBuilding;
 import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
-import com.minecolonies.coremod.colony.buildings.AbstractBuildingWorker;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingWorker;
 import com.minecolonies.coremod.colony.buildings.BuildingGuardTower;
 import com.minecolonies.coremod.colony.jobs.JobGuard;
 import com.minecolonies.coremod.colony.permissions.Permissions;
-import com.minecolonies.coremod.configuration.Configurations;
-import com.minecolonies.coremod.entity.ai.basic.AbstractEntityAISkill;
-import com.minecolonies.coremod.entity.ai.util.AIState;
-import com.minecolonies.coremod.entity.ai.util.AITarget;
+import com.minecolonies.api.configurations.Configurations;
+import com.minecolonies.skeleton.ai.AbstractEntityAISkill;
+import com.minecolonies.api.util.AIState;
+import com.minecolonies.api.util.AITarget;
 import com.minecolonies.coremod.tileentities.TileEntityColonyBuilding;
-import com.minecolonies.coremod.util.BlockPosUtil;
-import com.minecolonies.coremod.util.InventoryUtils;
-import com.minecolonies.coremod.util.LanguageHandler;
-import com.minecolonies.coremod.util.Log;
+import com.minecolonies.api.util.BlockPosUtil;
+import com.minecolonies.api.util.InventoryUtils;
+import com.minecolonies.api.util.LanguageHandler;
+import com.minecolonies.api.util.Log;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityItem;
@@ -35,7 +35,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static com.minecolonies.coremod.entity.ai.util.AIState.*;
+import static com.minecolonies.api.util.AIState.*;
 
 /**
  * Abstract class which contains all the guard basics let it be range, melee or magic.
@@ -167,7 +167,7 @@ public abstract class AbstractEntityAIGuard extends AbstractEntityAISkill<JobGua
      */
     private boolean checkIfExecute()
     {
-        final AbstractBuilding building = getOwnBuilding();
+        final IBuilding building = getOwnBuilding();
         if (!(building instanceof BuildingGuardTower))
         {
             return true;
@@ -398,7 +398,7 @@ public abstract class AbstractEntityAIGuard extends AbstractEntityAISkill<JobGua
     protected AIState patrol()
     {
         worker.setAIMoveSpeed(1);
-        final AbstractBuilding building = getOwnBuilding();
+        final IBuilding building = getOwnBuilding();
 
         if (building instanceof BuildingGuardTower)
         {
@@ -481,11 +481,11 @@ public abstract class AbstractEntityAIGuard extends AbstractEntityAISkill<JobGua
             return worker.getPosition();
         }
 
-        final Collection<AbstractBuilding> buildingList = worker.getColony().getBuildings().values();
+        final Collection<IBuilding> buildingList = worker.getColony().getBuildings().values();
         final Object[] buildingArray = buildingList.toArray();
 
         final int random = worker.getRandom().nextInt(buildingArray.length);
-        final AbstractBuilding building = (AbstractBuilding) buildingArray[random];
+        final IBuilding building = (IBuilding) buildingArray[random];
 
         if (building instanceof BuildingGuardTower
               || BlockPosUtil.getDistance2D(building.getLocation(), this.getOwnBuilding().getLocation()) > getPatrolDistance())
@@ -505,7 +505,7 @@ public abstract class AbstractEntityAIGuard extends AbstractEntityAISkill<JobGua
      */
     public boolean shouldReturnToTarget(final BlockPos target, final double range)
     {
-        final AbstractBuilding building = getOwnBuilding();
+        final IBuilding building = getOwnBuilding();
 
         if (currentPathTarget == null && building instanceof BuildingGuardTower)
         {

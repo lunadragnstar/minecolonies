@@ -1,12 +1,12 @@
 package com.minecolonies.coremod.entity.ai.citizen.lumberjack;
 
+import com.minecolonies.api.util.*;
 import com.minecolonies.compatibility.Compatibility;
 import com.minecolonies.coremod.colony.jobs.JobLumberjack;
-import com.minecolonies.coremod.entity.ai.basic.AbstractEntityAIInteract;
-import com.minecolonies.coremod.entity.ai.util.AIState;
-import com.minecolonies.coremod.entity.ai.util.AITarget;
-import com.minecolonies.coremod.entity.pathfinding.PathJobFindTree;
-import com.minecolonies.coremod.util.*;
+import com.minecolonies.skeleton.ai.AbstractEntityAIInteract;
+import com.minecolonies.api.util.AIState;
+import com.minecolonies.api.util.AITarget;
+import com.minecolonies.api.entity.pathfinding.PathJobFindTree;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockSapling;
 import net.minecraft.block.SoundType;
@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static com.minecolonies.coremod.entity.ai.util.AIState.*;
+import static com.minecolonies.api.util.AIState.*;
 
 /**
  * The lumberjack AI class.

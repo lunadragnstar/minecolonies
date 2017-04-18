@@ -1,15 +1,15 @@
 package com.minecolonies.coremod.items;
 
-import com.minecolonies.coremod.achievements.ModAchievements;
+import com.minecolonies.coremod.achievements.ModAchievementsInit;
 import com.minecolonies.coremod.blocks.ModBlocks;
 import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.configuration.Configurations;
+import com.minecolonies.api.configurations.Configurations;
 import com.minecolonies.coremod.creativetab.ModCreativeTabs;
 import com.minecolonies.api.util.Constants;
-import com.minecolonies.coremod.util.BlockUtils;
-import com.minecolonies.coremod.util.LanguageHandler;
-import com.minecolonies.coremod.util.Log;
-import com.minecolonies.coremod.util.StructureWrapper;
+import com.minecolonies.api.util.BlockUtils;
+import com.minecolonies.api.util.LanguageHandler;
+import com.minecolonies.api.util.Log;
+import com.minecolonies.api.util.StructureWrapper;
 import net.minecraft.block.BlockChest;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
@@ -127,7 +127,7 @@ public class ItemSupplyChestDeployer extends AbstractItemMinecolonies
             spawnShip(worldIn, pos, enumfacing);
             stack.stackSize--;
 
-            playerIn.addStat(ModAchievements.achievementGetSupply);
+            playerIn.addStat(ModAchievementsInit.achievementGetSupply);
 
             return EnumActionResult.SUCCESS;
         }
@@ -143,7 +143,7 @@ public class ItemSupplyChestDeployer extends AbstractItemMinecolonies
      */
     private static boolean isFirstPlacing(@NotNull final EntityPlayer player)
     {
-        if (Configurations.allowInfiniteSupplyChests || !player.hasAchievement(ModAchievements.achievementGetSupply))
+        if (Configurations.allowInfiniteSupplyChests || !player.hasAchievement(ModAchievementsInit.achievementGetSupply))
         {
             return true;
         }

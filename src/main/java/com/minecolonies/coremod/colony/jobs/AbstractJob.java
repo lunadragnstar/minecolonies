@@ -1,10 +1,11 @@
 package com.minecolonies.coremod.colony.jobs;
 
-import com.minecolonies.coremod.client.render.RenderBipedCitizen;
+import com.minecolonies.api.client.model.CitizenModel;
+import com.minecolonies.api.job.IJob;
+import com.minecolonies.api.util.Log;
 import com.minecolonies.coremod.colony.CitizenData;
 import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.entity.ai.basic.AbstractAISkeleton;
-import com.minecolonies.coremod.util.Log;
+import com.minecolonies.skeleton.ai.AbstractAISkeleton;
 import net.minecraft.entity.ai.EntityAITasks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -21,7 +22,7 @@ import java.util.*;
 /**
  * Basic job information.
  */
-public abstract class AbstractJob
+public abstract class AbstractJob implements com.minecolonies.api.job.IJob
 {
     private static final String TAG_TYPE         = "type";
     private static final String TAG_ITEMS_NEEDED = "itemsNeeded";
@@ -73,6 +74,55 @@ public abstract class AbstractJob
     }
 
     /**
+     * Create a Job from saved NBTTagCompound data.
+     *
+     * @param citizen  The citizen that owns the Job.
+     * @param compound The NBTTagCompound containing the saved Job data.
+     * @return New Job created from the data, or null.
+     */
+    @Nullable
+    public static IJob createFromNBT(CitizenData citizen, @NotNull NBTTagCompound compound)
+    {
+        @Nullable AbstractJob job = null;
+        @Nullable Class<? extends AbstractJob> oclass = null;
+
+        try
+        {
+            oclass = AbstractJob.nameToClassMap.get(compound.getString(AbstractJob.TAG_TYPE));
+
+            if (oclass != null)
+            {
+                final Constructor<?> constructor = oclass.getDeclaredConstructor(CitizenData.class);
+                job = (AbstractJob) constructor.newInstance(citizen);
+            }
+        }
+        catch (@NotNull NoSuchMethodException | InvocationTargetException | IllegalAccessException | InstantiationException e)
+        {
+            Log.getLogger().trace(e);
+        }
+
+        if (job != null)
+        {
+            try
+            {
+                job.readFromNBT(compound);
+            }
+            catch (final RuntimeException ex)
+            {
+                Log.getLogger().error(String.format("A Job %s(%s) has thrown an exception during loading, its state cannot be restored. Report this to the mod author",
+                  compound.getString(AbstractJob.TAG_TYPE), oclass.getName()), ex);
+                job = null;
+            }
+        }
+        else
+        {
+            Log.getLogger().warn(String.format("Unknown Job type '%s' or missing constructor of proper format.", compound.getString(AbstractJob.TAG_TYPE)));
+        }
+
+        return job;
+    }
+
+    /**
      * Add a given Job mapping.
      *
      * @param name     name of job class.
@@ -99,59 +149,11 @@ public abstract class AbstractJob
     }
 
     /**
-     * Create a Job from saved NBTTagCompound data.
-     *
-     * @param citizen  The citizen that owns the Job.
-     * @param compound The NBTTagCompound containing the saved Job data.
-     * @return New Job created from the data, or null.
-     */
-    @Nullable
-    public static AbstractJob createFromNBT(final CitizenData citizen, @NotNull final NBTTagCompound compound)
-    {
-        @Nullable AbstractJob job = null;
-        @Nullable Class<? extends AbstractJob> oclass = null;
-
-        try
-        {
-            oclass = nameToClassMap.get(compound.getString(TAG_TYPE));
-
-            if (oclass != null)
-            {
-                final Constructor<?> constructor = oclass.getDeclaredConstructor(CitizenData.class);
-                job = (AbstractJob) constructor.newInstance(citizen);
-            }
-        }
-        catch (@NotNull NoSuchMethodException | InvocationTargetException | IllegalAccessException | InstantiationException e)
-        {
-            Log.getLogger().trace(e);
-        }
-
-        if (job != null)
-        {
-            try
-            {
-                job.readFromNBT(compound);
-            }
-            catch (final RuntimeException ex)
-            {
-                Log.getLogger().error(String.format("A Job %s(%s) has thrown an exception during loading, its state cannot be restored. Report this to the mod author",
-                  compound.getString(TAG_TYPE), oclass.getName()), ex);
-                job = null;
-            }
-        }
-        else
-        {
-            Log.getLogger().warn(String.format("Unknown Job type '%s' or missing constructor of proper format.", compound.getString(TAG_TYPE)));
-        }
-
-        return job;
-    }
-
-    /**
      * Restore the Job from an NBTTagCompound.
      *
      * @param compound NBTTagCompound containing saved Job data.
      */
+    @Override
     public void readFromNBT(@NotNull final NBTTagCompound compound)
     {
         final NBTTagList itemsNeededTag = compound.getTagList(TAG_ITEMS_NEEDED, Constants.NBT.TAG_COMPOUND);
@@ -163,20 +165,14 @@ public abstract class AbstractJob
     }
 
     /**
-     * Return a Localization textContent for the Job.
+     * Get the RenderBipedCitizen.CitizenModel to use when the Citizen performs this job role.
      *
-     * @return localization textContent String.
+     * @return CitizenModel of the citizen.
      */
-    public abstract String getName();
-
-    /**
-     * Get the RenderBipedCitizen.Model to use when the Citizen performs this job role.
-     *
-     * @return Model of the citizen.
-     */
-    public RenderBipedCitizen.Model getModel()
+    @Override
+    public CitizenModel getModel()
     {
-        return RenderBipedCitizen.Model.CITIZEN;
+        return CitizenModel.CITIZEN;
     }
 
     /**
@@ -184,6 +180,7 @@ public abstract class AbstractJob
      *
      * @return CitizenData that owns this Job.
      */
+    @Override
     public CitizenData getCitizen()
     {
         return citizen;
@@ -194,6 +191,7 @@ public abstract class AbstractJob
      *
      * @return {@link Colony} of the citizen.
      */
+    @Override
     public Colony getColony()
     {
         return citizen.getColony();
@@ -204,6 +202,7 @@ public abstract class AbstractJob
      *
      * @param compound NBTTagCompound to save the Job to.
      */
+    @Override
     public void writeToNBT(@NotNull final NBTTagCompound compound)
     {
         final String s = classToNameMap.get(this.getClass());
@@ -233,6 +232,7 @@ public abstract class AbstractJob
      *
      * @return true if the Job has no needed items.
      */
+    @Override
     public boolean isMissingNeededItem()
     {
         return !itemsNeeded.isEmpty();
@@ -243,6 +243,7 @@ public abstract class AbstractJob
      *
      * @return List of items needed by the Job.
      */
+    @Override
     @NotNull
     public List<ItemStack> getItemsNeeded()
     {
@@ -252,6 +253,7 @@ public abstract class AbstractJob
     /**
      * Reset the items needed.
      */
+    @Override
     public void clearItemsNeeded()
     {
         itemsNeeded.clear();
@@ -263,6 +265,7 @@ public abstract class AbstractJob
      *
      * @param stack Item+count needed to do the job.
      */
+    @Override
     public void addItemNeeded(@NotNull final ItemStack stack)
     {
         for (@NotNull final ItemStack neededItem : itemsNeeded)
@@ -284,6 +287,7 @@ public abstract class AbstractJob
      * @param stack ItemStack (item+count) to remove from the list of needed items.
      * @return modified ItemStack with remaining items (or null).
      */
+    @Override
     @Nullable
     public ItemStack removeItemNeeded(@NotNull final ItemStack stack)
     {
@@ -311,6 +315,7 @@ public abstract class AbstractJob
      *
      * @param tasks EntityAITasks list to add tasks to.
      */
+    @Override
     public void addTasks(@NotNull final EntityAITasks tasks)
     {
         final AbstractAISkeleton<? extends AbstractJob> aiTask = generateAI();
@@ -321,18 +326,12 @@ public abstract class AbstractJob
     }
 
     /**
-     * Generate your AI class to register.
-     *
-     * @return your personal AI instance.
-     */
-    public abstract AbstractAISkeleton<? extends AbstractJob> generateAI();
-
-    /**
      * This method can be used to display the current status.
      * That a citizen is having.
      *
      * @return Small string to display info in name tag
      */
+    @Override
     public String getNameTagDescription()
     {
         return this.nameTag;
@@ -344,6 +343,7 @@ public abstract class AbstractJob
      *
      * @param nameTag The name tag to display.
      */
+    @Override
     public final void setNameTag(final String nameTag)
     {
         this.nameTag = nameTag;
@@ -354,6 +354,7 @@ public abstract class AbstractJob
      *
      * @return soundEvent to be played.
      */
+    @Override
     public SoundEvent getBedTimeSound()
     {
         return null;
@@ -364,6 +365,7 @@ public abstract class AbstractJob
      *
      * @return soundEvent to be played.
      */
+    @Override
     public SoundEvent getBadWeatherSound()
     {
         return null;

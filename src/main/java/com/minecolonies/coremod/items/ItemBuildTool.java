@@ -1,7 +1,7 @@
 package com.minecolonies.coremod.items;
 
 import com.minecolonies.coremod.MineColonies;
-import com.minecolonies.coremod.achievements.ModAchievements;
+import com.minecolonies.coremod.achievements.ModAchievementsInit;
 import com.minecolonies.coremod.creativetab.ModCreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -42,7 +42,7 @@ public class ItemBuildTool extends AbstractItemMinecolonies
                                        final float hitY,
                                        final float hitZ)
     {
-        playerIn.addStat(ModAchievements.achievementWandOfbuilding);
+        playerIn.addStat(ModAchievementsInit.achievementWandOfbuilding);
         if (worldIn.isRemote)
         {
             MineColonies.proxy.openBuildToolWindow(pos.offset(facing));

@@ -1,10 +1,10 @@
 package com.minecolonies.coremod.commands;
 
+import com.minecolonies.api.citizen.IEntityCitizen;
+import com.minecolonies.api.permission.Rank;
 import com.minecolonies.coremod.colony.CitizenData;
 import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.permissions.Permissions;
-import com.minecolonies.coremod.entity.EntityCitizen;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.server.MinecraftServer;
@@ -56,19 +56,19 @@ public class KillCitizenCommand extends AbstractCitizensCommands
     void executeSpecializedCode(@NotNull final MinecraftServer server, final ICommandSender sender, final Colony colony, final int citizenId)
     {
         final CitizenData citizenData = colony.getCitizen(citizenId);
-        final EntityCitizen entityCitizen = citizenData.getCitizenEntity();
+        final IEntityCitizen IEntityCitizen = citizenData.getCitizenEntity();
         sender.addChatMessage(new TextComponentString(String.format(CITIZEN_DESCRIPTION, citizenData.getId(), citizenData.getName())));
-        final BlockPos position = entityCitizen.getPosition();
+        final BlockPos position = IEntityCitizen.getPosition();
         sender.addChatMessage(new TextComponentString(String.format(COORDINATES_XYZ, position.getX(), position.getY(), position.getZ())));
         sender.addChatMessage(new TextComponentString(REMOVED_MESSAGE));
-        server.addScheduledTask(() -> entityCitizen.onDeath(CONSOLE_DAMAGE_SOURCE));
+        server.addScheduledTask(() -> IEntityCitizen.onDeath(CONSOLE_DAMAGE_SOURCE));
     }
 
     @Override
     public boolean canPlayerUseCommand(final EntityPlayer player, final Commands theCommand, final int colonyId)
     {
         return super.canPlayerUseCommand(player, theCommand, colonyId)
-                && ColonyManager.getColony(colonyId) != null && ColonyManager.getColony(colonyId).getPermissions().getRank(player).equals(Permissions.Rank.OWNER);
+                && ColonyManager.getColony(colonyId) != null && ColonyManager.getColony(colonyId).getPermissions().getRank(player).equals(Rank.OWNER);
     }
 
     @NotNull

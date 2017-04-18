@@ -7,7 +7,7 @@ import com.minecolonies.coremod.creativetab.ModCreativeTabs;
 import com.minecolonies.coremod.inventory.InventoryField;
 import com.minecolonies.api.util.Constants;
 import com.minecolonies.coremod.tileentities.ScarecrowTileEntity;
-import com.minecolonies.coremod.util.LanguageHandler;
+import com.minecolonies.api.util.LanguageHandler;
 import net.minecraft.block.BlockContainer;
 import net.minecraft.block.BlockHorizontal;
 import net.minecraft.block.material.Material;

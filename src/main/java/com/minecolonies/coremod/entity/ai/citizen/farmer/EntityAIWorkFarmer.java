@@ -1,16 +1,16 @@
 package com.minecolonies.coremod.entity.ai.citizen.farmer;
 
+import com.minecolonies.api.citizen.IEntityCitizen;
 import com.minecolonies.coremod.blocks.BlockHutField;
 import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.buildings.BuildingFarmer;
 import com.minecolonies.coremod.colony.jobs.JobFarmer;
-import com.minecolonies.coremod.entity.EntityCitizen;
-import com.minecolonies.coremod.entity.ai.basic.AbstractEntityAIInteract;
-import com.minecolonies.coremod.entity.ai.util.AIState;
-import com.minecolonies.coremod.entity.ai.util.AITarget;
-import com.minecolonies.coremod.util.BlockUtils;
-import com.minecolonies.coremod.util.InventoryUtils;
-import com.minecolonies.coremod.util.Utils;
+import com.minecolonies.skeleton.ai.AbstractEntityAIInteract;
+import com.minecolonies.api.util.AIState;
+import com.minecolonies.api.util.AITarget;
+import com.minecolonies.api.util.BlockUtils;
+import com.minecolonies.api.util.InventoryUtils;
+import com.minecolonies.api.util.Utils;
 import net.minecraft.block.BlockCrops;
 import net.minecraft.block.IGrowable;
 import net.minecraft.block.state.IBlockState;
@@ -22,7 +22,7 @@ import net.minecraftforge.items.wrapper.InvWrapper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static com.minecolonies.coremod.entity.ai.util.AIState.*;
+import static com.minecolonies.api.util.AIState.*;
 
 /**
  * Farmer AI class.
@@ -697,7 +697,7 @@ public class EntityAIWorkFarmer extends AbstractEntityAIInteract<JobFarmer>
      * @return citizen object
      */
     @Nullable
-    public EntityCitizen getCitizen()
+    public IEntityCitizen getCitizen()
     {
         return worker;
     }

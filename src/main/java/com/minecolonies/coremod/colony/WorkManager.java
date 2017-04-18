@@ -1,10 +1,11 @@
 package com.minecolonies.coremod.colony;
 
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
-import com.minecolonies.coremod.colony.workorders.AbstractWorkOrder;
+import com.minecolonies.api.citizen.ICitizenData;
+import com.minecolonies.api.colony.building.IBuilding;
+import com.minecolonies.api.util.Log;
 import com.minecolonies.coremod.colony.workorders.WorkOrderBuild;
 import com.minecolonies.coremod.entity.ai.citizen.builder.ConstructionTapeHelper;
-import com.minecolonies.coremod.util.Log;
+import com.minecolonies.skeleton.workorders.AbstractWorkOrder;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.common.util.Constants.NBT;
@@ -21,7 +22,7 @@ import java.util.stream.Collectors;
 /**
  * Handles work orders for a colony.
  */
-public class WorkManager
+public class WorkManager implements com.minecolonies.api.colony.IWorkManager
 {
     private static final String TAG_WORK_ORDERS              = "workOrders";
     //  Once a second
@@ -53,6 +54,7 @@ public class WorkManager
      *
      * @param order {@link AbstractWorkOrder} to remove.
      */
+    @Override
     public void removeWorkOrder(@NotNull final AbstractWorkOrder order)
     {
         removeWorkOrder(order.getID());
@@ -63,6 +65,7 @@ public class WorkManager
      *
      * @param orderId ID of the order to remove
      */
+    @Override
     public void removeWorkOrder(final int orderId)
     {
         final AbstractWorkOrder workOrder = workOrders.get(orderId);
@@ -71,7 +74,7 @@ public class WorkManager
         if (workOrder instanceof WorkOrderBuild)
         {
             final WorkOrderBuild wob = (WorkOrderBuild)workOrder;
-            final AbstractBuilding building = colony.getBuilding(wob.getBuildingLocation());
+            final IBuilding building = colony.getBuilding(wob.getBuildingLocation());
             ConstructionTapeHelper.removeConstructionTape(wob, colony.getWorld());
             if(building != null)
             {
@@ -88,6 +91,7 @@ public class WorkManager
      * @param <W>  the type of work order to return.
      * @return the work order of the specified id, or null if it was not found or is of an incompatible type.
      */
+    @Override
     @Nullable
     public <W extends AbstractWorkOrder> W getWorkOrder(final int id, @NotNull final Class<W> type)
     {
@@ -109,6 +113,7 @@ public class WorkManager
      * @param id the id of the work order.
      * @return the work order of the specified id, or null.
      */
+    @Override
     public AbstractWorkOrder getWorkOrder(final int id)
     {
         return workOrders.get(id);
@@ -121,6 +126,7 @@ public class WorkManager
      * @param <W>  the type of work order to return.
      * @return an unclaimed work order of the given type, or null if no unclaimed work order of the type was found.
      */
+    @Override
     @Nullable
     public <W extends AbstractWorkOrder> W getUnassignedWorkOrder(@NotNull final Class<W> type)
     {
@@ -142,6 +148,7 @@ public class WorkManager
      * @param <W>  the type of work order to return.
      * @return a list of all work orders of the given type.
      */
+    @Override
     public <W extends AbstractWorkOrder> List<W> getWorkOrdersOfType(@NotNull final Class<W> type)
     {
         return workOrders.values().stream().filter(o -> type.isAssignableFrom(o.getClass())).map(type::cast).collect(Collectors.toList());
@@ -152,6 +159,7 @@ public class WorkManager
      *
      * @return a list of all work orders.
      */
+    @Override
     @NotNull
     public Map<Integer, AbstractWorkOrder> getWorkOrders()
     {
@@ -163,7 +171,8 @@ public class WorkManager
      *
      * @param citizen Citizen to unclaim work for.
      */
-    public void clearWorkForCitizen(@NotNull final CitizenData citizen)
+    @Override
+    public void clearWorkForCitizen(@NotNull final ICitizenData citizen)
     {
         dirty = true;
         workOrders.values().stream().filter(o -> o != null && o.isClaimedBy(citizen)).forEach(AbstractWorkOrder::clearClaimedBy);
@@ -174,6 +183,7 @@ public class WorkManager
      *
      * @param compound Compound to save to.
      */
+    @Override
     public void writeToNBT(@NotNull final NBTTagCompound compound)
     {
         //  Work Orders
@@ -192,6 +202,7 @@ public class WorkManager
      *
      * @param compound Compound to read from.
      */
+    @Override
     public void readFromNBT(@NotNull final NBTTagCompound compound)
     {
         //  Work Orders
@@ -222,6 +233,7 @@ public class WorkManager
      *
      * @param order Order to add.
      */
+    @Override
     public void addWorkOrder(@NotNull final AbstractWorkOrder order)
     {
         dirty = true;
@@ -244,6 +256,7 @@ public class WorkManager
      *
      * @param event {@link net.minecraftforge.fml.common.gameevent.TickEvent.WorldTickEvent}.
      */
+    @Override
     public void onWorldTick(@NotNull final TickEvent.WorldTickEvent event)
     {
         if (event.phase == TickEvent.Phase.END)
@@ -278,6 +291,7 @@ public class WorkManager
      *
      * @return true if so.
      */
+    @Override
     public boolean isDirty()
     {
         return dirty;
@@ -288,6 +302,7 @@ public class WorkManager
      *
      * @param dirty true if so. False to reset.
      */
+    @Override
     public void setDirty(final boolean dirty)
     {
         this.dirty = dirty;

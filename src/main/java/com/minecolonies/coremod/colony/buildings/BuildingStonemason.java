@@ -7,6 +7,7 @@ import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.ColonyView;
 import com.minecolonies.coremod.colony.jobs.AbstractJob;
 import com.minecolonies.coremod.colony.jobs.JobPlaceholder;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingWorker;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.NotNull;
 

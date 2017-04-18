@@ -9,7 +9,7 @@ import com.minecolonies.coremod.MineColonies;
 import com.minecolonies.coremod.colony.buildings.BuildingMiner;
 import com.minecolonies.api.util.Constants;
 import com.minecolonies.coremod.network.messages.MinerSetLevelMessage;
-import com.minecolonies.coremod.util.LanguageHandler;
+import com.minecolonies.api.util.LanguageHandler;
 import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;

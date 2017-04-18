@@ -1,7 +1,7 @@
 package com.minecolonies.coremod.colony.buildings;
 
 import com.minecolonies.blockout.views.Window;
-import com.minecolonies.coremod.achievements.ModAchievements;
+import com.minecolonies.coremod.achievements.ModAchievementsInit;
 import com.minecolonies.coremod.client.gui.WindowHutFisherman;
 import com.minecolonies.coremod.colony.CitizenData;
 import com.minecolonies.coremod.colony.Colony;
@@ -9,6 +9,8 @@ import com.minecolonies.coremod.colony.ColonyView;
 import com.minecolonies.coremod.colony.jobs.AbstractJob;
 import com.minecolonies.coremod.colony.jobs.JobFisherman;
 import com.minecolonies.coremod.entity.ai.item.handling.ItemStorage;
+import com.minecolonies.skeleton.colony.building.AbstractBuilding;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingWorker;
 import net.minecraft.init.Items;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.NotNull;
@@ -91,11 +93,11 @@ public class BuildingFisherman extends AbstractBuildingWorker
 
         if (newLevel == 1)
         {
-            this.getColony().triggerAchievement(ModAchievements.achievementBuildingFisher);
+            this.getColony().triggerAchievement(ModAchievementsInit.achievementBuildingFisher);
         }
         if (newLevel >= this.getMaxBuildingLevel())
         {
-            this.getColony().triggerAchievement(ModAchievements.achievementUpgradeFisherMax);
+            this.getColony().triggerAchievement(ModAchievementsInit.achievementUpgradeFisherMax);
         }
     }
 

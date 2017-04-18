@@ -9,7 +9,7 @@ import com.minecolonies.coremod.event.EventHandler;
 import com.minecolonies.coremod.event.FMLEventHandler;
 import com.minecolonies.coremod.inventory.GuiHandler;
 import com.minecolonies.api.util.Constants;
-import com.minecolonies.coremod.sounds.ModSoundEvents;
+import com.minecolonies.api.sounds.ModSoundEvents;
 import com.minecolonies.coremod.tileentities.ScarecrowTileEntity;
 import com.minecolonies.coremod.tileentities.TileEntityColonyBuilding;
 import com.minecolonies.coremod.tileentities.TileEntityWareHouse;

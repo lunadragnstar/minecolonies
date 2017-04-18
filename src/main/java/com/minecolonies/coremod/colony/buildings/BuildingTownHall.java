@@ -1,10 +1,11 @@
 package com.minecolonies.coremod.colony.buildings;
 
 import com.minecolonies.blockout.views.Window;
-import com.minecolonies.coremod.achievements.ModAchievements;
+import com.minecolonies.coremod.achievements.ModAchievementsInit;
 import com.minecolonies.coremod.client.gui.WindowTownHall;
 import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.ColonyView;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingHut;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.NotNull;
 
@@ -53,11 +54,11 @@ public class BuildingTownHall extends AbstractBuildingHut
 
         if (newLevel == 1)
         {
-            this.getColony().triggerAchievement(ModAchievements.achievementBuildingTownhall);
+            this.getColony().triggerAchievement(ModAchievementsInit.achievementBuildingTownhall);
         }
         if (newLevel >= this.getMaxBuildingLevel())
         {
-            this.getColony().triggerAchievement(ModAchievements.achievementUpgradeTownhallMax);
+            this.getColony().triggerAchievement(ModAchievementsInit.achievementUpgradeTownhallMax);
         }
     }
 

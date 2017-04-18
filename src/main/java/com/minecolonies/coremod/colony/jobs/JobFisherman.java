@@ -1,11 +1,11 @@
 package com.minecolonies.coremod.colony.jobs;
 
-import com.minecolonies.coremod.client.render.RenderBipedCitizen;
+import com.minecolonies.api.client.model.CitizenModel;
 import com.minecolonies.coremod.colony.CitizenData;
-import com.minecolonies.coremod.entity.ai.basic.AbstractAISkeleton;
+import com.minecolonies.skeleton.ai.AbstractAISkeleton;
 import com.minecolonies.coremod.entity.ai.citizen.fisherman.EntityAIWorkFisherman;
-import com.minecolonies.coremod.sounds.FishermanSounds;
-import com.minecolonies.coremod.util.BlockPosUtil;
+import com.minecolonies.api.sounds.FishermanSounds;
+import com.minecolonies.api.util.BlockPosUtil;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.SoundEvent;
@@ -89,15 +89,15 @@ public class JobFisherman extends AbstractJob
     }
 
     /**
-     * Get the RenderBipedCitizen.Model to use when the Citizen performs this job role.
+     * Get the RenderBipedCitizen.CitizenModel to use when the Citizen performs this job role.
      *
-     * @return Model of the citizen.
+     * @return CitizenModel of the citizen.
      */
     @NotNull
     @Override
-    public RenderBipedCitizen.Model getModel()
+    public CitizenModel getModel()
     {
-        return RenderBipedCitizen.Model.FISHERMAN;
+        return CitizenModel.FISHERMAN;
     }
 
     /**

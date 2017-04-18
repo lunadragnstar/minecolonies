@@ -1,9 +1,9 @@
 package com.minecolonies.coremod.commands;
 
 import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.configuration.Configurations;
-import com.minecolonies.coremod.util.BlockPosUtil;
-import com.minecolonies.coremod.util.ServerUtils;
+import com.minecolonies.api.configurations.Configurations;
+import com.minecolonies.api.util.BlockPosUtil;
+import com.minecolonies.api.util.ServerUtils;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
@@ -18,7 +18,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-import static com.minecolonies.coremod.commands.AbstractSingleCommand.Commands.COLONYTP;
 import static com.minecolonies.coremod.commands.AbstractSingleCommand.Commands.RTP;
 
 /**

@@ -1,11 +1,12 @@
 package com.minecolonies.coremod.tileentities;
 
+import com.minecolonies.api.colony.building.IBuilding;
 import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.ColonyManager;
 import com.minecolonies.coremod.colony.ColonyView;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
+import com.minecolonies.skeleton.colony.building.AbstractBuilding;
 import com.minecolonies.coremod.colony.permissions.Permissions;
-import com.minecolonies.coremod.util.Log;
+import com.minecolonies.api.util.Log;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.NetworkManager;
@@ -39,7 +40,7 @@ public class TileEntityColonyBuilding extends TileEntityChest
     /**
      * The building the tileEntity belongs to.
      */
-    private AbstractBuilding building;
+    private IBuilding building;
 
     /**
      * Check if the building has a mirror.
@@ -201,7 +202,7 @@ public class TileEntityColonyBuilding extends TileEntityChest
      *
      * @return {@link AbstractBuilding} associated with the tile entity.
      */
-    public AbstractBuilding getBuilding()
+    public IBuilding getBuilding()
     {
         if (building == null)
         {
@@ -215,7 +216,7 @@ public class TileEntityColonyBuilding extends TileEntityChest
      *
      * @param b {@link AbstractBuilding} to associate with the tile entity.
      */
-    public void setBuilding(final AbstractBuilding b)
+    public void setBuilding(final IBuilding b)
     {
         building = b;
     }

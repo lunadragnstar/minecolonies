@@ -1,11 +1,11 @@
 package com.minecolonies.coremod.colony.jobs;
 
-import com.minecolonies.coremod.client.render.RenderBipedCitizen;
+import com.minecolonies.api.client.model.CitizenModel;
+import com.minecolonies.api.colony.building.IBuilding;
 import com.minecolonies.coremod.colony.CitizenData;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
 import com.minecolonies.coremod.colony.buildings.BuildingBuilder;
 import com.minecolonies.coremod.colony.workorders.WorkOrderBuild;
-import com.minecolonies.coremod.entity.ai.basic.AbstractAISkeleton;
+import com.minecolonies.skeleton.ai.AbstractAISkeleton;
 import com.minecolonies.coremod.entity.ai.citizen.builder.EntityAIStructureBuilder;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
@@ -56,9 +56,9 @@ public class JobBuilder extends AbstractJobStructure
 
     @NotNull
     @Override
-    public RenderBipedCitizen.Model getModel()
+    public CitizenModel getModel()
     {
-        return RenderBipedCitizen.Model.BUILDER;
+        return CitizenModel.BUILDER;
     }
 
     @Override
@@ -116,7 +116,7 @@ public class JobBuilder extends AbstractJobStructure
     public void complete()
     {
         final BlockPos buildingLocation = this.getWorkOrder().getBuildingLocation();
-        final AbstractBuilding building = this.getCitizen().getColony().getBuilding(buildingLocation);
+        final IBuilding building = this.getCitizen().getColony().getBuilding(buildingLocation);
 
         if (building != null)
         {
@@ -145,7 +145,7 @@ public class JobBuilder extends AbstractJobStructure
      */
     private void resetNeededItems()
     {
-        final AbstractBuilding workerBuilding = this.getCitizen().getWorkBuilding();
+        final IBuilding workerBuilding = this.getCitizen().getWorkBuilding();
         if (workerBuilding instanceof BuildingBuilder)
         {
             ((BuildingBuilder) workerBuilding).resetNeededResources();

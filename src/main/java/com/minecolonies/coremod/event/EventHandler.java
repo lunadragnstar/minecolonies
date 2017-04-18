@@ -1,14 +1,14 @@
 package com.minecolonies.coremod.event;
 
+import com.minecolonies.api.colony.building.IBuilding;
 import com.minecolonies.coremod.blocks.AbstractBlockHut;
 import com.minecolonies.coremod.blocks.BlockHutTownHall;
 import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.IColony;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
+import com.minecolonies.api.colony.IColony;
 import com.minecolonies.coremod.colony.permissions.Permissions;
-import com.minecolonies.coremod.util.LanguageHandler;
-import com.minecolonies.coremod.util.Log;
-import com.minecolonies.coremod.util.MathUtils;
+import com.minecolonies.api.util.LanguageHandler;
+import com.minecolonies.api.util.Log;
+import com.minecolonies.api.util.MathUtils;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockSilverfish;
 import net.minecraft.client.Minecraft;
@@ -91,7 +91,7 @@ public class EventHandler
 
         if (!world.isRemote && event.getState().getBlock() instanceof AbstractBlockHut)
         {
-            @Nullable final AbstractBuilding building = ColonyManager.getBuilding(world, event.getPos());
+            @Nullable final IBuilding building = ColonyManager.getBuilding(world, event.getPos());
             if (building == null)
             {
                 return;

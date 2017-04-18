@@ -1,5 +1,6 @@
 package com.minecolonies.coremod.colony.buildings;
 
+import com.minecolonies.api.colony.building.IBuilding;
 import com.minecolonies.blockout.views.Window;
 import com.minecolonies.coremod.client.gui.WindowHutWorkerPlaceholder;
 import com.minecolonies.coremod.colony.CitizenData;
@@ -7,6 +8,7 @@ import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.ColonyView;
 import com.minecolonies.coremod.colony.jobs.AbstractJob;
 import com.minecolonies.coremod.colony.jobs.JobDeliveryman;
+import com.minecolonies.skeleton.colony.building.AbstractBuildingWorker;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
@@ -23,7 +25,7 @@ public class BuildingDeliveryman extends AbstractBuildingWorker
     /**
      * Building the deliveryman will deliver somethingTo
      */
-    private AbstractBuilding buildingToDeliver;
+    private IBuilding buildingToDeliver;
 
     /**
      * Instantiates a new warehouse building.
@@ -40,7 +42,7 @@ public class BuildingDeliveryman extends AbstractBuildingWorker
      * Set the building the deliveryman should deliver to.
      * @param building building to deliver to.
      */
-    public void setBuildingToDeliver(AbstractBuilding building)
+    public void setBuildingToDeliver(IBuilding building)
     {
         this.buildingToDeliver = building;
     }
@@ -49,7 +51,7 @@ public class BuildingDeliveryman extends AbstractBuildingWorker
      * Get the building the deliveryman should deliver to.
      * @return the building.
      */
-    public AbstractBuilding getBuildingToDeliver()
+    public IBuilding getBuildingToDeliver()
     {
         return this.buildingToDeliver;
     }

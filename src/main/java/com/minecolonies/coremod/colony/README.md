@@ -2,7 +2,7 @@
 The Colony Manager system (as a whole) is a server- and client- side system that provides permanent residency for data
 structures and systems to manage colonies, removing dependence on Minecraft world chunks or entities being loaded.
 
-Colony Manager uses a hybrid type of 'proxy' Model/View pattern combined with a subscriber model, where Colony-related
+Colony Manager uses a hybrid type of 'proxy' Model/View pattern combined with a subscriber citizenModel, where Colony-related
 objects that exist on the server side and are mirrored as 'View' objects to interested clients.  View objects provide
 read-only access to data about the mirrored object, and methods that would mutate the object instead initiate a request
 to the server.
@@ -25,7 +25,7 @@ tracking of tasks that involve multiple components in a central location.  For e
 or upgraded, a WorkOrderBuild is added to the WorkManager.
 
 Jobs are a method of linking a CitizenData to a Building, and also provides persistent storage for a given citizen in
-a given role.  Jobs also determine the render model ID for a citizen.
+a given role.  Jobs also determine the render citizenModel ID for a citizen.
 
 Data for a citizen / worker / building / colony should be exist in the locations as follows:
 * AITask = Data necessary to perform the AI Tasks / work, but that does not need to be persistent

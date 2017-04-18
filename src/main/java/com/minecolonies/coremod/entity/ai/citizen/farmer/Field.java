@@ -1,12 +1,13 @@
 package com.minecolonies.coremod.entity.ai.citizen.farmer;
 
+import com.minecolonies.api.citizen.farmer.IField;
+import com.minecolonies.api.util.BlockPosUtil;
+import com.minecolonies.api.util.LanguageHandler;
 import com.minecolonies.coremod.colony.Colony;
 import com.minecolonies.coremod.colony.ColonyManager;
 import com.minecolonies.coremod.colony.permissions.Permissions;
 import com.minecolonies.coremod.inventory.InventoryField;
 import com.minecolonies.coremod.tileentities.ScarecrowTileEntity;
-import com.minecolonies.coremod.util.BlockPosUtil;
-import com.minecolonies.coremod.util.LanguageHandler;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Container;
@@ -23,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Handles the field class.
  */
-public class Field extends Container
+public class Field extends Container implements IField<InventoryField>
 {
     /**
      * The size of a normal inventory.
@@ -91,6 +92,11 @@ public class Field extends Container
     private static final String TAG_INITIALIZED = "initialized";
 
     /**
+     * Tag to store the inventory of the field.
+     */
+    private static final String TAG_INVENTORY = "inventory";
+
+    /**
      * Amount of rows in the player inventory.
      */
     private static final int PLAYER_INVENTORY_ROWS = 3;
@@ -123,7 +129,7 @@ public class Field extends Container
     /**
      * The max width/length of a field.
      */
-    private static final int MAX_RANGE = 5;
+    private static final int MAX_RANGE     = 5;
 
     /**
      * The colony of the field.
@@ -186,6 +192,24 @@ public class Field extends Container
      */
     @NotNull
     private String owner = "";
+
+    /**
+     * Create and load a Field given it's saved NBTTagCompound.
+     *
+     * @param colony   The owning colony.
+     * @param compound The saved data.
+     * @return {@link Field} created from the compound.
+     */
+    @NotNull
+    public static Field createFromNBT(Colony colony, @NotNull NBTTagCompound compound)
+    {
+        @NotNull final Field field = new Field(colony);
+        if (compound.hasKey(TAG_INVENTORY))
+        {
+            field.deserializeNBT(compound);
+        }
+        return field;
+    }
 
     /**
      * Private constructor to create field from NBT.
@@ -284,46 +308,11 @@ public class Field extends Container
      *
      * @return {@link com.minecolonies.coremod.colony.Colony} of the current object.
      */
+    @Override
     @Nullable
     public Colony getColony()
     {
         return this.colony;
-    }
-
-    /**
-     * Create and load a Field given it's saved NBTTagCompound.
-     *
-     * @param colony   The owning colony.
-     * @param compound The saved data.
-     * @return {@link Field} created from the compound.
-     */
-    @NotNull
-    public static Field createFromNBT(final Colony colony, @NotNull final NBTTagCompound compound)
-    {
-        @NotNull final Field field = new Field(colony);
-        field.readFromNBT(compound);
-        return field;
-    }
-
-    /**
-     * Save data to NBT compound.
-     * Writes the {@link #location} value.
-     *
-     * @param compound {@link net.minecraft.nbt.NBTTagCompound} to write data to.
-     */
-    public void readFromNBT(@NotNull final NBTTagCompound compound)
-    {
-        location = BlockPosUtil.readFromNBT(compound, TAG_LOCATION);
-        taken = compound.getBoolean(TAG_TAKEN);
-        fieldStage = FieldStage.values()[compound.getInteger(TAG_STAGE)];
-        lengthPlusX = compound.getInteger(TAG_LENGTH_PLUS);
-        widthPlusZ = compound.getInteger(TAG_WIDTH_PLUS);
-        lengthMinusX = compound.getInteger(TAG_LENGTH_MINUS);
-        widthMinusZ = compound.getInteger(TAG_WIDTH_MINUS);
-        inventory = new InventoryField("");
-        inventory.readFromNBT(compound);
-        setOwner(compound.getString(TAG_OWNER));
-        initialized = compound.getBoolean(TAG_INITIALIZED);
     }
 
     /**
@@ -344,6 +333,7 @@ public class Field extends Container
      * @param position the start position.
      * @param world    the world the field is in.
      */
+    @Override
     public final void calculateSize(@NotNull final World world, @NotNull final BlockPos position)
     {
         //Calculate in all 4 directions
@@ -378,6 +368,7 @@ public class Field extends Container
      * @param position the position.
      * @return true if it is.
      */
+    @Override
     public boolean isNoPartOfField(@NotNull final World world, @NotNull final BlockPos position)
     {
         return world.isAirBlock(position) || world.getBlockState(position.up()).getMaterial().isSolid();
@@ -388,6 +379,7 @@ public class Field extends Container
      *
      * @return {@link BlockPos} of the current object.
      */
+    @Override
     public BlockPos getID()
     {
         // Location doubles as ID
@@ -395,30 +387,11 @@ public class Field extends Container
     }
 
     /**
-     * Save data to NBT compound.
-     * Writes the {@link #location} value.
-     *
-     * @param compound {@link net.minecraft.nbt.NBTTagCompound} to write data to.
-     */
-    public void writeToNBT(@NotNull final NBTTagCompound compound)
-    {
-        BlockPosUtil.writeToNBT(compound, TAG_LOCATION, this.location);
-        compound.setBoolean(TAG_TAKEN, taken);
-        compound.setInteger(TAG_STAGE, fieldStage.ordinal());
-        compound.setInteger(TAG_LENGTH_PLUS, lengthPlusX);
-        compound.setInteger(TAG_WIDTH_PLUS, widthPlusZ);
-        compound.setInteger(TAG_LENGTH_MINUS, lengthMinusX);
-        compound.setInteger(TAG_WIDTH_MINUS, widthMinusZ);
-        inventory.writeToNBT(compound);
-        compound.setString(TAG_OWNER, owner);
-        compound.setBoolean(TAG_INITIALIZED, initialized);
-    }
-
-    /**
      * Has the field been taken?
      *
      * @return true if the field is not free to use, false after releasing it.
      */
+    @Override
     public boolean isTaken()
     {
         return this.taken;
@@ -429,6 +402,7 @@ public class Field extends Container
      *
      * @param taken is field free or not
      */
+    @Override
     public void setTaken(final boolean taken)
     {
         this.taken = taken;
@@ -439,6 +413,7 @@ public class Field extends Container
      *
      * @return true if there are crops planted.
      */
+    @Override
     public FieldStage getFieldStage()
     {
         return this.fieldStage;
@@ -449,6 +424,7 @@ public class Field extends Container
      *
      * @param fieldStage true after planting, false after harvesting.
      */
+    @Override
     public void setFieldStage(final FieldStage fieldStage)
     {
         this.fieldStage = fieldStage;
@@ -459,6 +435,7 @@ public class Field extends Container
      *
      * @return true if so.
      */
+    @Override
     public boolean needsWork()
     {
         return this.needsWork;
@@ -469,6 +446,7 @@ public class Field extends Container
      *
      * @param needsWork true if work needed, false after completing the job.
      */
+    @Override
     public void setNeedsWork(final boolean needsWork)
     {
         this.needsWork = needsWork;
@@ -479,6 +457,7 @@ public class Field extends Container
      *
      * @return true if so.
      */
+    @Override
     public boolean isInitialized()
     {
         return this.initialized;
@@ -489,6 +468,7 @@ public class Field extends Container
      *
      * @param initialized true if so.
      */
+    @Override
     public void setInitialized(final boolean initialized)
     {
         this.initialized = initialized;
@@ -499,6 +479,7 @@ public class Field extends Container
      *
      * @return the ItemSeed
      */
+    @Override
     @Nullable
     public ItemStack getSeed()
     {
@@ -514,6 +495,7 @@ public class Field extends Container
      *
      * @return field length.
      */
+    @Override
     public int getLengthPlusX()
     {
         return lengthPlusX;
@@ -524,6 +506,7 @@ public class Field extends Container
      *
      * @return field width.
      */
+    @Override
     public int getWidthPlusZ()
     {
         return widthPlusZ;
@@ -534,6 +517,7 @@ public class Field extends Container
      *
      * @return field length.
      */
+    @Override
     public int getLengthMinusX()
     {
         return lengthMinusX;
@@ -544,6 +528,7 @@ public class Field extends Container
      *
      * @return field width.
      */
+    @Override
     public int getWidthMinusZ()
     {
         return widthMinusZ;
@@ -554,6 +539,7 @@ public class Field extends Container
      *
      * @return the location of the scarecrow of the field.
      */
+    @Override
     public BlockPos getLocation()
     {
         return this.location;
@@ -564,6 +550,7 @@ public class Field extends Container
      *
      * @return the inventory this citizen has.
      */
+    @Override
     @NotNull
     public InventoryField getInventoryField()
     {
@@ -575,6 +562,7 @@ public class Field extends Container
      *
      * @param inventory the inventory to set.
      */
+    @Override
     public void setInventoryField(final InventoryField inventory)
     {
         this.inventory = inventory;
@@ -585,6 +573,7 @@ public class Field extends Container
      *
      * @return the string description of the citizen.
      */
+    @Override
     @NotNull
     public String getOwner()
     {
@@ -596,6 +585,7 @@ public class Field extends Container
      *
      * @param owner the name of the citizen.
      */
+    @Override
     public void setOwner(@NotNull final String owner)
     {
         if (owner.isEmpty())
@@ -615,19 +605,49 @@ public class Field extends Container
      *
      * @param customName the name to set.
      */
+    @Override
     public void setCustomName(final String customName)
     {
         this.inventory.setCustomName(customName);
     }
 
-    /**
-     * Describes the stage the field is in.
-     * Like if it has been hoed, planted or is empty.
-     */
-    public enum FieldStage
+    @Override
+    public NBTTagCompound serializeNBT()
     {
-        EMPTY,
-        HOED,
-        PLANTED
+        NBTTagCompound compound = new NBTTagCompound();
+
+        BlockPosUtil.writeToNBT(compound, TAG_LOCATION, this.location);
+        compound.setBoolean(TAG_TAKEN, taken);
+        compound.setInteger(TAG_STAGE, fieldStage.ordinal());
+        compound.setInteger(TAG_LENGTH_PLUS, lengthPlusX);
+        compound.setInteger(TAG_WIDTH_PLUS, widthPlusZ);
+        compound.setInteger(TAG_LENGTH_MINUS, lengthMinusX);
+        compound.setInteger(TAG_WIDTH_MINUS, widthMinusZ);
+        compound.setTag(TAG_INVENTORY, inventory.serializeNBT());
+        compound.setString(TAG_OWNER, owner);
+        compound.setBoolean(TAG_INITIALIZED, initialized);
+
+        return compound;
+    }
+
+    @Override
+    public void deserializeNBT(final NBTTagCompound compound)
+    {
+        location = BlockPosUtil.readFromNBT(compound, TAG_LOCATION);
+        taken = compound.getBoolean(TAG_TAKEN);
+        fieldStage = FieldStage.values()[compound.getInteger(TAG_STAGE)];
+        lengthPlusX = compound.getInteger(TAG_LENGTH_PLUS);
+        widthPlusZ = compound.getInteger(TAG_WIDTH_PLUS);
+        lengthMinusX = compound.getInteger(TAG_LENGTH_MINUS);
+        widthMinusZ = compound.getInteger(TAG_WIDTH_MINUS);
+        inventory = new InventoryField("");
+
+        if (compound.hasKey(TAG_INVENTORY))
+        {
+            inventory.deserializeNBT(compound.getCompoundTag(TAG_INVENTORY));
+        }
+
+        setOwner(compound.getString(TAG_OWNER));
+        initialized = compound.getBoolean(TAG_INITIALIZED);
     }
 }

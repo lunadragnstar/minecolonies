@@ -1,5 +1,6 @@
 package com.minecolonies.coremod.configuration;
 
+import com.minecolonies.api.configurations.Configurations;
 import net.minecraftforge.common.config.Configuration;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent.OnConfigChangedEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -10,7 +11,7 @@ import java.io.File;
 
 import com.minecolonies.api.util.Constants;
 
-import static com.minecolonies.coremod.configuration.Configurations.*;
+import static com.minecolonies.api.configurations.Configurations.*;
 
 /**
  * Configuration Handler.

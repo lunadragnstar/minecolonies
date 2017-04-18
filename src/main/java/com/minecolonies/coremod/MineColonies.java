@@ -1,14 +1,14 @@
 package com.minecolonies.coremod;
 
-import com.minecolonies.coremod.achievements.ModAchievements;
+import com.minecolonies.coremod.achievements.ModAchievementsInit;
 import com.minecolonies.coremod.colony.Structures;
 import com.minecolonies.coremod.commands.CommandEntryPoint;
 import com.minecolonies.coremod.configuration.ConfigurationHandler;
-import com.minecolonies.coremod.configuration.Configurations;
+import com.minecolonies.api.configurations.Configurations;
 import com.minecolonies.api.util.Constants;
 import com.minecolonies.coremod.network.messages.*;
 import com.minecolonies.coremod.proxy.IProxy;
-import com.minecolonies.coremod.util.RecipeHandler;
+import com.minecolonies.api.util.RecipeHandler;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.SidedProxy;
@@ -108,7 +108,7 @@ public class MineColonies
 
         Structures.init();
 
-        ModAchievements.init();
+        ModAchievementsInit.init();
     }
 
     private static synchronized void initializeNetwork()

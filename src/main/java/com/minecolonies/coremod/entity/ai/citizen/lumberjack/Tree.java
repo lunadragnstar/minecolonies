@@ -2,7 +2,7 @@ package com.minecolonies.coremod.entity.ai.citizen.lumberjack;
 
 import com.minecolonies.api.citizen.lumberjack.tree.ITree;
 import com.minecolonies.compatibility.Compatibility;
-import com.minecolonies.coremod.util.BlockPosUtil;
+import com.minecolonies.api.util.BlockPosUtil;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockNewLog;
 import net.minecraft.block.BlockOldLog;
