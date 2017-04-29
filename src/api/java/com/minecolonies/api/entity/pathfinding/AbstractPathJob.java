@@ -1,9 +1,6 @@
 package com.minecolonies.api.entity.pathfinding;
 
-import com.minecolonies.coremod.blocks.BlockConstructionTape;
-import com.minecolonies.coremod.blocks.BlockConstructionTapeCorner;
-import com.minecolonies.coremod.blocks.BlockHutField;
-import com.minecolonies.coremod.configuration.Configurations;
+import com.minecolonies.api.configurations.Configurations;
 import com.minecolonies.api.util.BlockUtils;
 import com.minecolonies.api.util.Log;
 import net.minecraft.block.*;
@@ -64,16 +61,6 @@ public abstract class AbstractPathJob implements Callable<Path>
     private static final double SWIM_COST       = 5D;
 
     /**
-     * Distance which is considered to be too close to a fence.
-     */
-    private static final double TOO_CLOSE_TO_FENCE = 0.1D;
-
-    /**
-     * Distance which is considered to be too far from a fence.
-     */
-    private static final double TOO_FAR_FROM_FENCE = 0.9D;
-
-    /**
      * Shift x by this value to calculate the node key..
      */
     private static final int SHIFT_X_BY = 20;
@@ -112,6 +99,8 @@ public abstract class AbstractPathJob implements Callable<Path>
     private       boolean            allowJumpPointSearchTypeWalk = false;
     private       int                totalNodesAdded              = 0;
     private       int                totalNodesVisited            = 0;
+
+    public static Set<IBlockPathingHelper> helpers = new HashSet<>();
 
     /**
      * AbstractPathJob constructor.
@@ -181,40 +170,12 @@ public abstract class AbstractPathJob implements Callable<Path>
         @NotNull final BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(MathHelper.floor_double(entity.posX),
                                                                                     (int) entity.posY,
                                                                                     MathHelper.floor_double(entity.posZ));
-        IBlockState bs = entity.worldObj.getBlockState(pos);
-        final Block b = bs.getBlock();
 
-        if (entity.isInWater())
+
+        for (IBlockPathingHelper helper : helpers)
         {
-            while (bs.getMaterial().isLiquid())
-            {
-                pos.setPos(pos.getX(), pos.getY() + 1, pos.getZ());
-                bs = entity.worldObj.getBlockState(pos);
-            }
-        }
-        else if (b instanceof BlockFence || b instanceof BlockWall || b instanceof BlockHutField)
-        {
-            //Push away from fence
-            final double dX = entity.posX - Math.floor(entity.posX);
-            final double dZ = entity.posZ - Math.floor(entity.posZ);
-
-            if (dX < TOO_CLOSE_TO_FENCE)
-            {
-                pos.setPos(pos.getX() - 1, pos.getY(), pos.getZ());
-            }
-            else if (dX > TOO_FAR_FROM_FENCE)
-            {
-                pos.setPos(pos.getX() + 1, pos.getY(), pos.getZ());
-            }
-
-            if (dZ < TOO_CLOSE_TO_FENCE)
-            {
-                pos.setPos(pos.getX(), pos.getY(), pos.getZ() - 1);
-            }
-            else if (dZ > TOO_FAR_FROM_FENCE)
-            {
-                pos.setPos(pos.getX(), pos.getY(), pos.getZ() + 1);
-            }
+            IBlockState bs = entity.worldObj.getBlockState(pos);
+            pos.setPos(helper.getStartPosition(pos, bs, entity));
         }
 
         return pos.toImmutable();
@@ -949,24 +910,34 @@ public abstract class AbstractPathJob implements Callable<Path>
      */
     protected boolean isPassable(@NotNull final IBlockState block)
     {
+        Boolean passable = null;
+
         if (block.getMaterial() != Material.AIR)
         {
-            if (block.getMaterial().blocksMovement())
+            for (IBlockPathingHelper helper : helpers)
             {
-                return block.getBlock() instanceof BlockDoor
-                         || block.getBlock() instanceof BlockFenceGate
-                         || block.getBlock() instanceof BlockConstructionTape
-                         || block.getBlock() instanceof BlockConstructionTapeCorner;
-            }
-            else if (block.getMaterial().isLiquid())
-            {
-                return false;
+                passable = helper.isPassable(block);
+                if (passable != null)
+                {
+                    break;
+                }
             }
         }
 
-        return true;
+        if (passable == null)
+        {
+            passable = true;
+        }
+
+        return passable;
     }
 
+    /**
+     * Used to check if a given blockpos is passable.
+     *
+     * @param pos The blockpos to check for.
+     * @return True when it can be passed false when not.
+     */
     protected boolean isPassable(final BlockPos pos)
     {
         return isPassable(world.getBlockState(pos));
@@ -981,26 +952,23 @@ public abstract class AbstractPathJob implements Callable<Path>
     @NotNull
     protected SurfaceType isWalkableSurface(@NotNull final IBlockState blockState)
     {
-        final Block block = blockState.getBlock();
-        if (block instanceof BlockFence
-              || block instanceof BlockFenceGate
-              || block instanceof BlockWall
-              || block instanceof BlockHutField)
+        @Nullable SurfaceType type = null;
+
+        for (IBlockPathingHelper helper : helpers)
         {
-            return SurfaceType.NOT_PASSABLE;
+            type = helper.getSurfaceTypeForBlock(blockState);
+            if (type != null)
+            {
+                break;
+            }
         }
 
-        if(block instanceof BlockConstructionTape || block instanceof BlockConstructionTapeCorner)
+        if (type == null)
         {
-            return SurfaceType.DROPABLE;
+            type = SurfaceType.DROPABLE;
         }
 
-        if (blockState.getMaterial().isSolid())
-        {
-            return SurfaceType.WALKABLE;
-        }
-
-        return SurfaceType.DROPABLE;
+        return type;
     }
 
     /**
@@ -1038,15 +1006,5 @@ public abstract class AbstractPathJob implements Callable<Path>
     protected void setAllowedSwimming(final boolean allowSwimming)
     {
         this.allowSwimming = allowSwimming;
-    }
-
-    /**
-     * Check if we can walk on a surface, drop into, or neither.
-     */
-    private enum SurfaceType
-    {
-        WALKABLE,
-        DROPABLE,
-        NOT_PASSABLE
     }
 }

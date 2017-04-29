@@ -1,6 +1,6 @@
 package com.minecolonies.api.entity.pathfinding;
 
-import com.minecolonies.coremod.entity.ai.citizen.lumberjack.Tree;
+import com.minecolonies.api.IMinecoloniesAPI;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.math.BlockPos;
@@ -81,7 +81,7 @@ public class PathJobFindTree extends AbstractPathJob
 
     private boolean isTree(final BlockPos pos)
     {
-        if (Tree.checkTree(world, pos))
+        if (IMinecoloniesAPI.Holder.getApi().getTreeManager().isTree(world, pos))
         {
             getResult().treeLocation = pos;
             return true;

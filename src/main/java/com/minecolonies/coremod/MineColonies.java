@@ -6,6 +6,7 @@ import com.minecolonies.coremod.commands.CommandEntryPoint;
 import com.minecolonies.coremod.configuration.ConfigurationHandler;
 import com.minecolonies.api.configurations.Configurations;
 import com.minecolonies.api.util.Constants;
+import com.minecolonies.coremod.entity.pathfinding.BlockPathingHelper;
 import com.minecolonies.coremod.network.messages.*;
 import com.minecolonies.coremod.proxy.IProxy;
 import com.minecolonies.api.util.RecipeHandler;
@@ -107,6 +108,8 @@ public class MineColonies
         proxy.registerRenderer();
 
         Structures.init();
+
+        BlockPathingHelper.init();
 
         ModAchievementsInit.init();
     }

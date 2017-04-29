@@ -1,6 +1,6 @@
 package com.minecolonies.api.entity.pathfinding;
 
-import com.minecolonies.coremod.entity.ai.citizen.fisherman.Pond;
+import com.minecolonies.api.citizen.fisherman.Pond;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;

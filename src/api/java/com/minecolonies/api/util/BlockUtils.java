@@ -1,6 +1,5 @@
 package com.minecolonies.api.util;
 
-import com.minecolonies.coremod.blocks.AbstractBlockHut;
 import net.minecraft.block.*;
 import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.block.state.IBlockState;

@@ -3,7 +3,7 @@ package com.minecolonies.api.entity.pathfinding;
 /**
  * Creates a pathResult of a certain path.
  */
-public class PathResult implements com.minecolonies.api.entity.pathfinding.IPathResult
+public class PathResult
 {
     protected volatile PathFindingStatus status                 = PathFindingStatus.IN_PROGRESS_COMPUTING;
     protected volatile boolean           pathReachesDestination = false;
@@ -24,7 +24,6 @@ public class PathResult implements com.minecolonies.api.entity.pathfinding.IPath
      *
      * @return status.
      */
-    @Override
     public PathFindingStatus getStatus()
     {
         return status;
@@ -35,7 +34,6 @@ public class PathResult implements com.minecolonies.api.entity.pathfinding.IPath
      *
      * @param s status to set.
      */
-    @Override
     public void setStatus(final PathFindingStatus s)
     {
         status = s;
@@ -44,13 +42,11 @@ public class PathResult implements com.minecolonies.api.entity.pathfinding.IPath
     /**
      * @return true if the path is still computing or being followed.
      */
-    @Override
     public boolean isInProgress()
     {
         return isComputing() || status == PathFindingStatus.IN_PROGRESS_FOLLOWING;
     }
 
-    @Override
     public boolean isComputing()
     {
         return status == PathFindingStatus.IN_PROGRESS_COMPUTING;
@@ -59,7 +55,6 @@ public class PathResult implements com.minecolonies.api.entity.pathfinding.IPath
     /**
      * @return true if the no path can be found.
      */
-    @Override
     public boolean failedToReachDestination()
     {
         return !isComputing() && !getPathReachesDestination();
@@ -68,7 +63,6 @@ public class PathResult implements com.minecolonies.api.entity.pathfinding.IPath
     /**
      * @return true if the path is computed, and it reaches a desired destination.
      */
-    @Override
     public boolean getPathReachesDestination()
     {
         return pathReachesDestination;
@@ -79,7 +73,6 @@ public class PathResult implements com.minecolonies.api.entity.pathfinding.IPath
      *
      * @param value new value for pathReachesDestination.
      */
-    @Override
     public void setPathReachesDestination(final boolean value)
     {
         pathReachesDestination = value;
@@ -88,7 +81,6 @@ public class PathResult implements com.minecolonies.api.entity.pathfinding.IPath
     /**
      * @return true if the path was cancelled before being computed or before the entity reached it's destination.
      */
-    @Override
     public boolean isCancelled()
     {
         return status == PathFindingStatus.CANCELLED;
@@ -97,7 +89,6 @@ public class PathResult implements com.minecolonies.api.entity.pathfinding.IPath
     /**
      * @return length of the compute path, in nodes.
      */
-    @Override
     public int getPathLength()
     {
         return pathLength;
@@ -108,7 +99,6 @@ public class PathResult implements com.minecolonies.api.entity.pathfinding.IPath
      *
      * @param l new value for pathLength.
      */
-    @Override
     public void setPathLength(final int l)
     {
         pathLength = l;
@@ -117,7 +107,6 @@ public class PathResult implements com.minecolonies.api.entity.pathfinding.IPath
     /**
      * @return true if the path moves from the current location, useful for checking if a path actually generated.
      */
-    @Override
     public boolean didPathGenerate()
     {
         return pathLength > 0;

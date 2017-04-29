@@ -20,6 +20,28 @@ import java.util.List;
 public abstract class SkeletonTree implements ITree
 {
     /**
+     * Tag to save the location to NBT.
+     */
+    private static final String TAG_LOCATION = "Location";
+
+    /**
+     * Tag to save the log list to NBT.
+     */
+    private static final String TAG_LOGS = "Logs";
+
+    /**
+     * Tage to save the stump list to NBT.
+     */
+    private static final String TAG_STUMPS = "Stumps";
+
+    /**
+     * Tag to store the topLog to NBT.
+     */
+    private static final String TAG_TOP_LOG = "topLog";
+
+
+
+    /**
      * All wood blocks connected to the tree.
      */
     private LinkedList<BlockPos> woodBlocks;
@@ -199,6 +221,7 @@ public abstract class SkeletonTree implements ITree
     @Override
     public NBTTagCompound serializeNBT()
     {
+        NBTTagCompound compound = new NBTTagCompound();
         BlockPosUtil.writeToNBT(compound, TAG_LOCATION, location);
 
         @NotNull final NBTTagList logs = new NBTTagList();
@@ -215,7 +238,7 @@ public abstract class SkeletonTree implements ITree
         }
         compound.setTag(TAG_STUMPS, stumps);
 
-        BlockPosUtil.writeToNBT(compound, TAG_TOP_LOG, topLog);
+        return compound;
     }
 
     /**
