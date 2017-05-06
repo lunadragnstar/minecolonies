@@ -1,7 +1,6 @@
 package com.minecolonies.coremod.util.transactions;
 
-import com.minecolonies.coremod.util.transactions.handlers.IExtractionTransactionHandler;
-import com.minecolonies.coremod.util.transactions.handlers.IInsertionTransactionHandler;
+import com.minecolonies.coremod.util.transactions.handlers.IByDirectionalTransactionHandler;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -16,10 +15,10 @@ public class Transaction<T>
     private TransactionPhase phase = TransactionPhase.SETUP;
 
     /**
-     * Holds the {@link IInsertionTransactionHandler} which is used as the target for the transaction.
+     * Holds the {@link IByDirectionalTransactionHandler} which is used as the target for the transaction.
      */
     @NotNull
-    private final IInsertionTransactionHandler<T> insertionTransactionHandler;
+    private final IByDirectionalTransactionHandler<T> insertionTransactionHandler;
 
     /**
      * Holds the index of the slot to insert into.
@@ -28,10 +27,10 @@ public class Transaction<T>
     private final int into;
 
     /**
-     * Holds the {@link IExtractionTransactionHandler} which is used as the source for the transaction.
+     * Holds the {@link IByDirectionalTransactionHandler} which is used as the source for the transaction.
      */
     @NotNull
-    private final IExtractionTransactionHandler<T> extractionTransactionHandler;
+    private final IByDirectionalTransactionHandler<T> extractionTransactionHandler;
 
     /**
      * Holds the index of the slot to extract from;
@@ -48,25 +47,23 @@ public class Transaction<T>
     /**
      * The original transaction object that is passed from the source to the target handler.
      */
-    private final T original;
+    private T original;
 
     @NotNull
     private TransactionResult<T> currentResult;
 
     public Transaction(
-                        @NotNull final IInsertionTransactionHandler<T> insertionTransactionHandler,
+                        @NotNull final IByDirectionalTransactionHandler<T> insertionTransactionHandler,
                         @NotNull final int into,
-                        @NotNull final IExtractionTransactionHandler<T> extractionTransactionHandler,
+                        @NotNull final IByDirectionalTransactionHandler<T> extractionTransactionHandler,
                         @NotNull final int from,
-                        @NotNull final int amount,
-                        final T original)
+                        @NotNull final int amount)
     {
         this.insertionTransactionHandler = insertionTransactionHandler;
         this.into = into;
         this.extractionTransactionHandler = extractionTransactionHandler;
         this.from = from;
         this.amount = amount;
-        this.original = original;
         this.currentResult = TransactionResult.getNotExecuted(this.original);
     }
 
@@ -77,32 +74,43 @@ public class Transaction<T>
     }
 
     @NotNull
-    public IInsertionTransactionHandler<T> getInsertionTransactionHandler()
+    public IByDirectionalTransactionHandler<T> getInsertionTransactionHandler()
     {
         return insertionTransactionHandler;
     }
 
     @NotNull
-    private int getInto()
+    public int getInto()
     {
         return into;
     }
 
     @NotNull
-    public IExtractionTransactionHandler<T> getExtractionTransactionHandler()
+    public IByDirectionalTransactionHandler<T> getExtractionTransactionHandler()
     {
         return extractionTransactionHandler;
     }
 
     @NotNull
-    private int getFrom()
+    public int getFrom()
     {
         return from;
+    }
+
+    @NotNull
+    public int getAmount()
+    {
+        return amount;
     }
 
     public T getOriginal()
     {
         return original;
+    }
+
+    public void setOriginal(final T original)
+    {
+        this.original = original;
     }
 
     @NotNull
@@ -119,10 +127,5 @@ public class Transaction<T>
     public void setCurrentResult(@NotNull final TransactionResult<T> currentResult)
     {
         this.currentResult = currentResult;
-    }
-
-    private TransactionResult<T> performExtraction()
-    {
-        return getExtractionTransactionHandler().performExtractionTransaction(from);
     }
 }

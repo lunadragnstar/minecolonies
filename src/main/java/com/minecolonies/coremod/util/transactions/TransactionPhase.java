@@ -1,7 +1,6 @@
 package com.minecolonies.coremod.util.transactions;
 
 import com.minecolonies.coremod.util.transactions.handlers.IByDirectionalTransactionHandler;
-import com.minecolonies.coremod.util.transactions.handlers.IInsertionTransactionHandler;
 
 /**
  * Indicated in which phase the transaction currently is.
@@ -29,12 +28,12 @@ public enum TransactionPhase
      * <p>
      * If a {@link TransactionResult} with {@link TransactionResult#isPartial()} as {@code True} has been reported as result
      * in the {@link TransactionPhase#FORWARDS} then in this phase the {@link TransactionResult#getTransactionResult()} is being put into
-     * the source handler to indicate that the target {@link IInsertionTransactionHandler} did accept the Transaction however it could not
+     * the source handler to indicate that the target {@link IByDirectionalTransactionHandler} did accept the Transaction however it could not
      * accept the Object completely.
      * <p>
      * If a {@link TransactionResult} with {@link TransactionResult#isReplaced()} as {@code True} has been reported as result
      * in the {@link TransactionPhase#FORWARDS} then in this phase the {@link TransactionResult#getTransactionResult()} is being put into
-     * the source handler to indicate that the target {@link IInsertionTransactionHandler} did accept the Transaction however it could not
+     * the source handler to indicate that the target {@link IByDirectionalTransactionHandler} did accept the Transaction however it could not
      * accept the Object add all and replaced an Object that it had already in its storage.
      */
     BACKWARDS,

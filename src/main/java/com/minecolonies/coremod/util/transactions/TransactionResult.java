@@ -78,9 +78,9 @@ public class TransactionResult<T>
         return new TransactionResult<>(true, true, true, false, false, leftOver);
     }
 
-    public static <T> TransactionResult<T> getFailed(T original)
+    public static <T> TransactionResult<T> getFailed()
     {
-        return new TransactionResult<>(true, false, false, true, false, original);
+        return new TransactionResult<>(true, false, false, true, false, null);
     }
 
     public static <T> TransactionResult<T> getReplaced(T replaced)
