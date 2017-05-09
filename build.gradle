@@ -1,3 +1,5 @@
+import com.minecolonies.gradle.nitrado.FtpUpload
+
 buildscript {
     repositories {
         jcenter()
@@ -8,13 +10,14 @@ buildscript {
     }
     dependencies {
         classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+        classpath files('plugins/gradle/Gradle-Nitrado.jar')
+        classpath group: 'commons-net', name: 'commons-net', version: '3.3'
     }
 }
 
 plugins {
     id "org.sonarqube" version "2.3"
     id "com.matthewprenger.cursegradle" version "1.0.7"
-    id 'org.hidetake.ssh' version '2.9.0'
 }
 
 repositories {
@@ -129,14 +132,6 @@ processResources {
 
     from(sourceSets.main.resources.srcDirs) {
         exclude 'mcmod.info'
-    }
-}
-
-remotes {
-    testingServer{
-        host = System.getenv().TESTINGSERVERHOSTNAME
-        user = System.getenv().TESTINGSERVERUSERNAME
-        password = System.getenv().TESTINGSERVERPASSWORD
     }
 }
 
@@ -289,28 +284,14 @@ task("createChangelog") {
     }
 }
 
-task uploadJarToTestingServer {
+task uploadJar(type: FtpUpload) {
     dependsOn build
 
-    doLast {
-        ssh.run {
-            session(remotes.testingServer) {
-                put from: jar.archivePath, into: '/mods/minecolonies.jar'
-            }
-        }
-    }
-}
+    host=System.getenv().TSHOSTNAME
+    port=System.getenv().TSHOSTPORT
+    user=System.getenv().TSHOSTUSER
+    password=System.getenv().TSHOSTPASSWORD
+    filePath=jar.archivePath
+    targetPath="/minecraftotherpacks/mods/minecolonies.jar"
 
-task restartTestingServer {
-    dependsOn uploadJarToTestingServer
-
-    doLast {
-        try {
-            new URL()
-        }
-        catch (Exception ex)
-        {
-            println "Restart of Testing server failed: " + ex.message
-        }
-    }
 }
