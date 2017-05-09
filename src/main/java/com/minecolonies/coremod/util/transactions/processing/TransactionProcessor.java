@@ -35,19 +35,24 @@ public final class TransactionProcessor<T>
         transaction.setPhase(newPhase);
     }
 
+    private TransactionResult<T> setResultOnTransaction(@NotNull TransactionResult<T> result)
+    {
+        transaction.setResultForCurrentPhase(result);
+        return result;
+    }
+
     private TransactionResult<T> performSetup()
     {
         transitionToState(TransactionPhase.SETUP);
 
         //No setup yet. The callback might perform something, but that might be situation dependent.
-
-        return TransactionResult.getNotExecuted(transaction.getOriginal());
+        return setResultOnTransaction(TransactionResult.getNotExecuted());
     }
 
     private TransactionResult<T> performForwardTransaction()
     {
         //Transition
-        transitionToState(TransactionPhase.FORWARDS);
+        transitionToState(TransactionPhase.FORWARDSEXTRACTION);
 
         //Extract the object from the source
         TransactionResult<T> sourceExtractionResult = transaction.getExtractionTransactionHandler().performExtractionTransaction(transaction.getFrom(), transaction.getAmount());
@@ -119,5 +124,13 @@ public final class TransactionProcessor<T>
         transaction.setCurrentResult(TransactionResult.getSuccesfull());
 
         return transaction.getCurrentResult();
+    }
+
+    private TransactionResult<T> performForwardsUndoTransaction()
+    {
+        //Transition
+        transitionToState(TransactionPhase.FORWARDSUNDO);
+
+
     }
 }

@@ -2,6 +2,9 @@ package com.minecolonies.coremod.util.transactions;
 
 import com.minecolonies.coremod.util.transactions.handlers.IByDirectionalTransactionHandler;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.HashMap;
 
 /**
  * Represent a single Transaction that is being executed.
@@ -49,8 +52,7 @@ public class Transaction<T>
      */
     private T original;
 
-    @NotNull
-    private TransactionResult<T> currentResult;
+    private final HashMap<TransactionPhase, TransactionResult<T>> results = new HashMap<>(TransactionPhase.values().length);
 
     public Transaction(
                         @NotNull final IByDirectionalTransactionHandler<T> insertionTransactionHandler,
@@ -64,13 +66,17 @@ public class Transaction<T>
         this.extractionTransactionHandler = extractionTransactionHandler;
         this.from = from;
         this.amount = amount;
-        this.currentResult = TransactionResult.getNotExecuted(this.original);
     }
 
     @NotNull
     public TransactionPhase getPhase()
     {
         return phase;
+    }
+
+    public void setPhase(@NotNull final TransactionPhase phase)
+    {
+        this.phase = phase;
     }
 
     @NotNull
@@ -113,19 +119,20 @@ public class Transaction<T>
         this.original = original;
     }
 
-    @NotNull
-    public TransactionResult<T> getCurrentResult()
+    @Nullable
+    public TransactionResult<T> getResultForPhase(@NotNull TransactionPhase phase)
     {
-        return currentResult;
+        return results.get(phase);
     }
 
-    public void setPhase(@NotNull final TransactionPhase phase)
+    public void setResultForPhase(@NotNull TransactionPhase phase, @NotNull TransactionResult<T> result)
     {
-        this.phase = phase;
+        results.put(phase, result);
     }
 
-    public void setCurrentResult(@NotNull final TransactionResult<T> currentResult)
+    public void setResultForCurrentPhase(@NotNull TransactionResult<T> resultForCurrentPhase)
     {
-        this.currentResult = currentResult;
+        setResultForPhase(getPhase(), resultForCurrentPhase);
     }
+
 }

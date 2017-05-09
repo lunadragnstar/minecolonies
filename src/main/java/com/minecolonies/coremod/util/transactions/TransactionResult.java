@@ -63,9 +63,9 @@ public class TransactionResult<T>
         return transactionResult;
     }
 
-    public static <T> TransactionResult<T> getNotExecuted(T original)
+    public static <T> TransactionResult<T> getNotExecuted()
     {
-        return new TransactionResult<>(false, false, false, false, false, original);
+        return new TransactionResult<>(false, false, false, false, false, null);
     }
 
     public static <T> TransactionResult<T> getSuccesfull()
