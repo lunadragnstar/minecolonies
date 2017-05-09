@@ -14,6 +14,7 @@ buildscript {
 plugins {
     id "org.sonarqube" version "2.3"
     id "com.matthewprenger.cursegradle" version "1.0.7"
+    id 'org.hidetake.ssh' version '2.9.0'
 }
 
 repositories {
@@ -128,6 +129,14 @@ processResources {
 
     from(sourceSets.main.resources.srcDirs) {
         exclude 'mcmod.info'
+    }
+}
+
+remotes {
+    testingServer{
+        host = System.getenv().TESTINGSERVERHOSTNAME
+        user = System.getenv().TESTINGSERVERUSERNAME
+        password = System.getenv().TESTINGSERVERPASSWORD
     }
 }
 
@@ -277,5 +286,31 @@ task("createChangelog") {
         }
 
         out.close()
+    }
+}
+
+task uploadJarToTestingServer {
+    dependsOn build
+
+    doLast {
+        ssh.run {
+            session(remotes.testingServer) {
+                put from: jar.archivePath, into: '/mods/minecolonies.jar'
+            }
+        }
+    }
+}
+
+task restartTestingServer {
+    dependsOn uploadJarToTestingServer
+
+    doLast {
+        try {
+            new URL()
+        }
+        catch (Exception ex)
+        {
+            println "Restart of Testing server failed: " + ex.message
+        }
     }
 }
