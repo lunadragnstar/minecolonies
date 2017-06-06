@@ -220,7 +220,7 @@ public abstract class AbstractEntityAIStructure<J extends AbstractJob> extends A
             }
 
             if (structureBlock.block == null
-                    || structureBlock.doesStructureBlockEqualWorldBlock()
+                    || structureBlock.doesStructureBlockEqualWorldBlock(withSubstitutionBlock)
                     || structureBlock.metadata.getMaterial().isSolid())
             {
                 //findNextBlock count was reached and we can ignore this block
@@ -264,7 +264,7 @@ public abstract class AbstractEntityAIStructure<J extends AbstractJob> extends A
                 return true;
             }
 
-            if (structureBlock.doesStructureBlockEqualWorldBlock())
+            if (structureBlock.doesStructureBlockEqualWorldBlock(withSubstitutionBlock))
             {
                 connectBlockToBuildingIfNecessary(structureBlock.block, structureBlock.blockPosition);
                 //findNextBlock count was reached and we can ignore this block
@@ -887,4 +887,14 @@ public abstract class AbstractEntityAIStructure<J extends AbstractJob> extends A
     {
         return rotation;
     }
+
+    /**
+     * Whether or not we want to use the substitution block as is.
+     * @return true if we want to build the substitution block
+     */
+    public boolean isWithSubstitutionBlock()
+    {
+        return withSubstitutionBlock;
+    }
+
 }

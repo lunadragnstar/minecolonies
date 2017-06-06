@@ -126,17 +126,18 @@ public class Structure
         /**
          * Checks if the structureBlock equals the worldBlock.
          *
+         * @param withSubstitutionBlock true if we want the substitution block, not the substitued block
          * @return true if so.
          */
-        public boolean doesStructureBlockEqualWorldBlock()
+        public boolean doesStructureBlockEqualWorldBlock(final boolean withSubstitutionBlock)
         {
             final IBlockState structureBlockState = metadata;
             final Block structureBlock = structureBlockState.getBlock();
 
             //All worldBlocks are equal the substitution block
-            if (structureBlock == ModBlocks.blockSubstitution
+            if (!withSubstitutionBlock && (structureBlock == ModBlocks.blockSubstitution
                   || (structureBlock == ModBlocks.blockSolidSubstitution && worldMetadata.getMaterial().isSolid()
-                        && !(worldBlock instanceof BlockOre) && worldBlock != Blocks.AIR))
+                        && !(worldBlock instanceof BlockOre) && worldBlock != Blocks.AIR)))
             {
                 return true;
             }
@@ -333,14 +334,16 @@ public class Structure
     @NotNull
     public Result advanceBlock()
     {
+        //TODO get whether we want substitution block or not
+        final boolean withSubstitutionBlock = false;
         switch (this.stage)
         {
             case CLEAR:
                 return advanceBlocks(this.structure::decrementBlock,
-                  structureBlock -> structureBlock.doesStructureBlockEqualWorldBlock()
+                  structureBlock -> structureBlock.doesStructureBlockEqualWorldBlock(withSubstitutionBlock)
                                       || structureBlock.worldBlock == Blocks.AIR);
             case BUILD:
-                return advanceBlocks(this.structure::incrementBlock, structureBlock -> structureBlock.doesStructureBlockEqualWorldBlock()
+                return advanceBlocks(this.structure::incrementBlock, structureBlock -> structureBlock.doesStructureBlockEqualWorldBlock(withSubstitutionBlock)
                                                                                          && structureBlock.block == Blocks.AIR
                                                                                          && !structureBlock.metadata.getMaterial().isSolid());
             case SPAWN:
@@ -348,7 +351,7 @@ public class Structure
                                                                        structureBlock.entity == null);
             case DECORATE:
                 return advanceBlocks(this.structure::incrementBlock, structureBlock ->
-                                                                       structureBlock.doesStructureBlockEqualWorldBlock()
+                                                                       structureBlock.doesStructureBlockEqualWorldBlock(withSubstitutionBlock)
                                                                          || structureBlock.metadata.getMaterial().isSolid());
             default:
                 return Result.NEW_BLOCK;
