@@ -181,21 +181,23 @@ public class Structure
      */
     private final World            targetWorld;
     private       Stage            stage;
+    private       boolean          withSubstitutionBlock = false;
 
     /**
      * Create a new building task.
      *
-     * @param targetWorld       the world to build it in
-     * @param buildingLocation  the location where we should build this Structure
-     * @param schematicFileName the structure file to load it from
-     * @param rotation          the rotation it should have
-     * @param mirror            the mirror.
+     * @param targetWorld            the world to build it in
+     * @param buildingLocation       the location where we should build this Structure
+     * @param schematicFileName      the structure file to load it from
+     * @param rotation               the rotation it should have
+     * @param mirror                 the mirror.
+     * @param withSubstitutionBlock  true if we want to build the substitution block.
      * @throws StructureException when there is an error loading the structure file
      */
-    public Structure(final World targetWorld, final BlockPos buildingLocation, final String schematicFileName, final int rotation, @NotNull final Mirror mirror)
+    public Structure(final World targetWorld, final BlockPos buildingLocation, final String schematicFileName, final int rotation, @NotNull final Mirror mirror, final boolean withSubstitutionBlock)
       throws StructureException
     {
-        this(targetWorld, buildingLocation, schematicFileName, rotation, Stage.CLEAR, null, mirror);
+        this(targetWorld, buildingLocation, schematicFileName, rotation, Stage.CLEAR, null, mirror, withSubstitutionBlock);
     }
 
     /**
@@ -208,6 +210,7 @@ public class Structure
      * @param stageProgress     the stage is should start with
      * @param blockProgress     the block it should start with
      * @param mirror            the mirror.
+    * @param withSubstitutionBlock  true if we want to build the substitution block.
      * @throws StructureException when there is an error loading the structure file
      */
     public Structure(
@@ -217,11 +220,13 @@ public class Structure
                       final int rotation,
                       final Stage stageProgress,
                       final BlockPos blockProgress,
-                      final Mirror mirror) throws StructureException
+                      final Mirror mirror,
+                      final boolean withSubstitutionBlock) throws StructureException
     {
         this.structure = loadStructure(targetWorld, buildingLocation, structureFileName, rotation, stageProgress, blockProgress, mirror);
         this.stage = stageProgress;
         this.targetWorld = targetWorld;
+        this.withSubstitutionBlock = withSubstitutionBlock;
     }
 
     /**
@@ -334,16 +339,14 @@ public class Structure
     @NotNull
     public Result advanceBlock()
     {
-        //TODO get whether we want substitution block or not
-        final boolean withSubstitutionBlock = false;
         switch (this.stage)
         {
             case CLEAR:
                 return advanceBlocks(this.structure::decrementBlock,
-                  structureBlock -> structureBlock.doesStructureBlockEqualWorldBlock(withSubstitutionBlock)
+                  structureBlock -> structureBlock.doesStructureBlockEqualWorldBlock(this.withSubstitutionBlock)
                                       || structureBlock.worldBlock == Blocks.AIR);
             case BUILD:
-                return advanceBlocks(this.structure::incrementBlock, structureBlock -> structureBlock.doesStructureBlockEqualWorldBlock(withSubstitutionBlock)
+                return advanceBlocks(this.structure::incrementBlock, structureBlock -> structureBlock.doesStructureBlockEqualWorldBlock(this.withSubstitutionBlock)
                                                                                          && structureBlock.block == Blocks.AIR
                                                                                          && !structureBlock.metadata.getMaterial().isSolid());
             case SPAWN:
@@ -351,7 +354,7 @@ public class Structure
                                                                        structureBlock.entity == null);
             case DECORATE:
                 return advanceBlocks(this.structure::incrementBlock, structureBlock ->
-                                                                       structureBlock.doesStructureBlockEqualWorldBlock(withSubstitutionBlock)
+                                                                       structureBlock.doesStructureBlockEqualWorldBlock(this.withSubstitutionBlock)
                                                                          || structureBlock.metadata.getMaterial().isSolid());
             default:
                 return Result.NEW_BLOCK;
