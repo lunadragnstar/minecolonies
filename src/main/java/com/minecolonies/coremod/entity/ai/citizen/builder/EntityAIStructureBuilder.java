@@ -119,7 +119,7 @@ public class EntityAIStructureBuilder extends AbstractEntityAIStructure<JobBuild
 
         final int tempRotation = workOrder.getRotation(world);
 
-        loadStructure(workOrder.getStructureName(), tempRotation, pos, workOrder.isMirrored());
+        loadStructure(workOrder.getStructureName(), tempRotation, pos, workOrder.isMirrored(), workOrder.isWithSubstitutionBlock());
         workOrder.setCleared(false);
         workOrder.setRequested(false);
 
@@ -212,7 +212,7 @@ public class EntityAIStructureBuilder extends AbstractEntityAIStructure<JobBuild
                 continue;
             }
 
-            if(block instanceof BlockSolidSubstitution)
+            if(block instanceof BlockSolidSubstitution && !job.getWorkOrder().isWithSubstitutionBlock())
             {
                 blockState = getSolidSubstitution(job.getStructure().getBlockPosition());
                 block = blockState.getBlock();

@@ -600,21 +600,21 @@ public class EntityAIStructureMiner extends AbstractEntityAIStructure<JobMiner>
     {
         if (mineNode == null)
         {
-            loadStructure(Structures.SCHEMATICS_PREFIX + "/miner/minerMainShaft", getRotationFromVector(), structurePos, false);
+            loadStructure(Structures.SCHEMATICS_PREFIX + "/miner/minerMainShaft", getRotationFromVector(), structurePos, false, false);
         }
         else
         {
             if (mineNode.getStyle() == Node.NodeType.CROSSROAD)
             {
-                loadStructure(Structures.SCHEMATICS_PREFIX + "/miner/minerX4", rotateTimes, structurePos, false);
+                loadStructure(Structures.SCHEMATICS_PREFIX + "/miner/minerX4", rotateTimes, structurePos, false, false);
             }
             if (mineNode.getStyle() == Node.NodeType.BEND)
             {
-                loadStructure(Structures.SCHEMATICS_PREFIX + "/miner/minerX2Right", rotateTimes, structurePos, false);
+                loadStructure(Structures.SCHEMATICS_PREFIX + "/miner/minerX2Right", rotateTimes, structurePos, false, false);
             }
             if (mineNode.getStyle() == Node.NodeType.TUNNEL)
             {
-                loadStructure(Structures.SCHEMATICS_PREFIX + "/miner/minerX2Top", rotateTimes, structurePos, false);
+                loadStructure(Structures.SCHEMATICS_PREFIX + "/miner/minerX2Top", rotateTimes, structurePos, false, false);
             }
         }
     }

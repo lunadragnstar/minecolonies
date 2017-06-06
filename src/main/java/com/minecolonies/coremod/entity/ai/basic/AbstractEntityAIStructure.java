@@ -97,6 +97,11 @@ public abstract class AbstractEntityAIStructure<J extends AbstractJob> extends A
     private int rotation = 0;
 
     /**
+     * Should we build the substitution blockThe rotation of the current build.
+     */
+    private boolean withSubstitutionBlock = false;
+
+    /**
      * String which shows if something is a waypoint.
      */
     public static final String WAYPOINT_STRING = "waypoint";
@@ -268,7 +273,7 @@ public abstract class AbstractEntityAIStructure<J extends AbstractJob> extends A
 
             @Nullable Block block = structureBlock.block;
             @Nullable IBlockState blockState = structureBlock.metadata;
-            if (block == ModBlocks.blockSolidSubstitution
+            if (block == ModBlocks.blockSolidSubstitution && !withSubstitutionBlock
                     && shallReplaceSolidSubstitutionBlock(structureBlock.worldBlock, structureBlock.worldMetadata))
             {
                 blockState = getSolidSubstitution(structureBlock.blockPosition);
@@ -389,16 +394,18 @@ public abstract class AbstractEntityAIStructure<J extends AbstractJob> extends A
     /**
      * Loads the structure given the name, rotation and position.
      *
-     * @param name        the name to retrieve  it.
-     * @param rotateTimes number of times to rotateWithMirror it.
-     * @param position    the position to set it.
-     * @param isMirrored  is the structure mirroed?
+     * @param name                  the name to retrieve  it.
+     * @param rotateTimes           number of times to rotateWithMirror it.
+     * @param position              the position to set it.
+     * @param isMirrored            is the structure mirroed?
+     * @param withSubstitutionBlock Should we build the substitution block ??
      */
-    public void loadStructure(@NotNull final String name, final int rotateTimes, final BlockPos position, final boolean isMirrored)
+    public void loadStructure(@NotNull final String name, final int rotateTimes, final BlockPos position, final boolean isMirrored, final boolean withSubstitutionBlock)
     {
         if (job instanceof AbstractJobStructure)
         {
             rotation = rotateTimes;
+            this.withSubstitutionBlock = withSubstitutionBlock;
             try
             {
                 final StructureWrapper wrapper = new StructureWrapper(world, name);
