@@ -48,6 +48,7 @@ public class BuildToolPlaceMessage extends AbstractMessage<BuildToolPlaceMessage
     private BlockPos pos;
     private boolean  isHut;
     private boolean  mirror;
+    private boolean  withSubstitutionBlock;
 
     /**
      * Empty constructor used when registering the message.
@@ -68,7 +69,8 @@ public class BuildToolPlaceMessage extends AbstractMessage<BuildToolPlaceMessage
      * @param isHut         true if hut, false if decoration
      * @param mirror        the mirror of the building or decoration.
      */
-    public BuildToolPlaceMessage(final String structureName, final String workOrderName, final BlockPos pos, final int rotation, final boolean isHut, final Mirror mirror)
+    public BuildToolPlaceMessage(final String structureName, final String workOrderName, final BlockPos pos, final int rotation,
+                                 final boolean isHut, final Mirror mirror, final boolean withSubstitutionBlock)
     {
         super();
         this.structureName = structureName;
@@ -77,6 +79,7 @@ public class BuildToolPlaceMessage extends AbstractMessage<BuildToolPlaceMessage
         this.rotation = rotation;
         this.isHut = isHut;
         this.mirror = mirror == Mirror.FRONT_BACK;
+        this.withSubstitutionBlock = withSubstitutionBlock;
     }
 
     /**
@@ -97,6 +100,8 @@ public class BuildToolPlaceMessage extends AbstractMessage<BuildToolPlaceMessage
         isHut = buf.readBoolean();
 
         mirror = buf.readBoolean();
+
+        withSubstitutionBlock = buf.readBoolean();
     }
 
     /**
@@ -119,6 +124,8 @@ public class BuildToolPlaceMessage extends AbstractMessage<BuildToolPlaceMessage
         buf.writeBoolean(isHut);
 
         buf.writeBoolean(mirror);
+
+        buf.writeBoolean(withSubstitutionBlock);
     }
 
     @Override
@@ -132,29 +139,30 @@ public class BuildToolPlaceMessage extends AbstractMessage<BuildToolPlaceMessage
         }
         if (message.isHut)
         {
-            handleHut(player.world, player, sn, message.rotation, message.pos, message.mirror);
+            handleHut(player.world, player, sn, message.rotation, message.pos, message.mirror, message.withSubstitutionBlock);
         }
         else
         {
-            handleDecoration(player.world, player, sn, message.workOrderName, message.rotation, message.pos, message.mirror);
+            handleDecoration(player.world, player, sn, message.workOrderName, message.rotation, message.pos, message.mirror, message.withSubstitutionBlock);
         }
     }
 
     /**
      * Handles the placement of huts.
      *
-     * @param world         World the hut is being placed into.
-     * @param player        Who placed the hut.
-     * @param sn            The name of the structure.
-     * @param workOrderName The name of the work order.
-     * @param rotation      The number of times the structure should be rotated.
-     * @param buildPos      The location the hut is being placed.
-     * @param mirror        Whether or not the strcture is mirrored.
+     * @param world                 World the hut is being placed into.
+     * @param player                Who placed the hut.
+     * @param sn                    The name of the structure.
+     * @param workOrderName         The name of the work order.
+     * @param rotation              The number of times the structure should be rotated.
+     * @param buildPos              The location the hut is being placed.
+     * @param mirror                Whether or not the strcture is mirrored.
+     * @param withSubstitutionBlock Whether or not substitution block will be using the placeholder block.
      */
     private static void handleHut(
                                    @NotNull final World world, @NotNull final EntityPlayer player,
                                    final Structures.StructureName sn,
-                                   final int rotation, @NotNull final BlockPos buildPos, final boolean mirror)
+                                   final int rotation, @NotNull final BlockPos buildPos, final boolean mirror, final boolean withSubstitutionBlock)
     {
         final String hut = sn.getSection();
         final Block block = Block.getBlockFromName(Constants.MOD_ID + ":blockHut" + hut);
@@ -173,10 +181,10 @@ public class BuildToolPlaceMessage extends AbstractMessage<BuildToolPlaceMessage
             {
                 world.destroyBlock(buildPos, true);
                 world.setBlockState(buildPos, block.getDefaultState().withRotation(BlockUtils.getRotation(rotation)));
-                ((AbstractBlockHut) block).onBlockPlacedByBuildTool(world, buildPos, world.getBlockState(buildPos), player, null, mirror, sn.getStyle());
+                ((AbstractBlockHut) block).onBlockPlacedByBuildTool(world, buildPos, world.getBlockState(buildPos), player, null, mirror, sn.getStyle(), withSubstitutionBlock);
 
                 player.inventory.clearMatchingItems(Item.getItemFromBlock(block), -1, 1, null);
-                setupBuilding(world, player, sn, rotation, buildPos, mirror);
+                setupBuilding(world, player, sn, rotation, buildPos, mirror, withSubstitutionBlock);
             }
         }
         else
@@ -188,18 +196,19 @@ public class BuildToolPlaceMessage extends AbstractMessage<BuildToolPlaceMessage
     /**
      * setup the building once it has been placed.
      *
-     * @param world         World the hut is being placed into.
-     * @param player        Who placed the hut.
-     * @param sn            The name of the structure.
-     * @param workOrderName The name of the work order.
-     * @param rotation      The number of times the structure should be rotated.
-     * @param buildPos      The location the hut is being placed.
-     * @param mirror        Whether or not the strcture is mirrored.
+     * @param world                 World the hut is being placed into.
+     * @param player                Who placed the hut.
+     * @param sn                    The name of the structure.
+     * @param workOrderName         The name of the work order.
+     * @param rotation              The number of times the structure should be rotated.
+     * @param buildPos              The location the hut is being placed.
+     * @param mirror                Whether or not the structure is mirrored.
+     * @param withSubstitutionBlock Whether or not substitution block will be using the placeholder block.
      */
     private static void setupBuilding(
                                       @NotNull final World world, @NotNull final EntityPlayer player,
                                       final Structures.StructureName sn,
-                                      final int rotation, @NotNull final BlockPos buildPos, final boolean mirror)
+                                      final int rotation, @NotNull final BlockPos buildPos, final boolean mirror, final boolean withSubstitutionBlock)
     {
         @Nullable final AbstractBuilding building = ColonyManager.getBuilding(world, buildPos);
 
@@ -223,33 +232,33 @@ public class BuildToolPlaceMessage extends AbstractMessage<BuildToolPlaceMessage
             }
             building.setStyle(sn.getStyle());
             building.setRotation(rotation);
-            if (mirror)
-            {
-                building.setMirror();
-            }
+            building.setMirror(mirror);
+            building.setWithSubstitutionBlock(withSubstitutionBlock);
         }
     }
 
     /**
      * Creates the {@link WorkOrderBuildDecoration} to start building the decoration.
      *
-     * @param world         The world the decoration is being built in.
-     * @param player        The player who placed the decoration.
-     * @param sn            The name of the structure.
-     * @param workOrderName The style of the decoration.
-     * @param rotation      The number of times the decoration is rotated.
-     * @param buildPos      The location the decoration will be built.
-     * @param mirror        Whether or not the strcture is mirrored.
+     * @param world                 The world the decoration is being built in.
+     * @param player                The player who placed the decoration.
+     * @param sn                    The name of the structure.
+     * @param workOrderName         The style of the decoration.
+     * @param rotation              The number of times the decoration is rotated.
+     * @param buildPos              The location the decoration will be built.
+     * @param mirror                Whether or not the strcture is mirrored.
+     * @param withSubstitutionBlock Whether or not substitution block will be using the placeholder block.
+
      */
     private static void handleDecoration(
                                           @NotNull final World world, @NotNull final EntityPlayer player,
                                           final Structures.StructureName sn, final String workOrderName,
-                                          final int rotation, @NotNull final BlockPos buildPos, final boolean mirror)
+                                          final int rotation, @NotNull final BlockPos buildPos, final boolean mirror, final boolean withSubstitutionBlock)
     {
         @Nullable final Colony colony = ColonyManager.getColony(world, buildPos);
         if (colony != null && colony.getPermissions().hasPermission(player, Action.PLACE_HUTS))
         {
-            colony.getWorkManager().addWorkOrder(new WorkOrderBuildDecoration(sn.toString(), workOrderName, rotation, buildPos, mirror));
+            colony.getWorkManager().addWorkOrder(new WorkOrderBuildDecoration(sn.toString(), workOrderName, rotation, buildPos, mirror, withSubstitutionBlock));
         }
         else
         {

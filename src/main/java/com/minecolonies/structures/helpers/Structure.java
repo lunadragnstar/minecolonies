@@ -490,12 +490,13 @@ public class Structure
     /**
      * Renders the structure.
      *
-     * @param startingPos  the start pos to render.
-     * @param clientWorld  the world of the client.
-     * @param player       the player object.
-     * @param partialTicks the partial ticks.
+     * @param startingPos           the start pos to render.
+     * @param clientWorld           the world of the client.
+     * @param player                the player object.
+     * @param partialTicks          the partial ticks.
+     * @param withSubstitutionBlock Whether or not we will render substitution block.
      */
-    public void renderStructure(@NotNull final BlockPos startingPos, @NotNull final World clientWorld, @NotNull final EntityPlayer player, final float partialTicks)
+    public void renderStructure(@NotNull final BlockPos startingPos, @NotNull final World clientWorld, @NotNull final EntityPlayer player, final float partialTicks, final boolean withSubstitutionBlock)
     {
         final Template.BlockInfo[] blockList = this.getBlockInfoWithSettings(this.settings);
         final Entity[] entityList = this.getEntityInfoWithSettings(clientWorld, startingPos, this.settings);
@@ -505,12 +506,12 @@ public class Structure
             Block block = aBlockList.blockState.getBlock();
             IBlockState iblockstate = aBlockList.blockState;
 
-            if (block == ModBlocks.blockSubstitution)
+            if (block == ModBlocks.blockSubstitution && !withSubstitutionBlock)
             {
                 continue;
             }
 
-            if (block == ModBlocks.blockSolidSubstitution)
+            if (block == ModBlocks.blockSolidSubstitution && !withSubstitutionBlock)
             {
                 iblockstate = BlockUtils.getSubstitutionBlockAtWorld(clientWorld, startingPos);
                 block = iblockstate.getBlock();

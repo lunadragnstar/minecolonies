@@ -788,7 +788,8 @@ public class WindowBuildTool extends AbstractWindowSkeleton
                                                                               Settings.instance.getPosition(),
                                                                               Settings.instance.getRotation(),
                                                                               false,
-                                                                              Settings.instance.getMirror()));
+                                                                              Settings.instance.getMirror(),
+                                                                              Settings.instance.isWithSubstitutionBlock()));
         }
         else
         {
@@ -815,7 +816,8 @@ public class WindowBuildTool extends AbstractWindowSkeleton
                                                                               Settings.instance.getPosition(),
                                                                               Settings.instance.getRotation(),
                                                                               structureName.isHut(),
-                                                                              Settings.instance.getMirror()));
+                                                                              Settings.instance.getMirror(),
+                                                                              Settings.instance.isWithSubstitutionBlock()));
         }
 
         Settings.instance.reset();

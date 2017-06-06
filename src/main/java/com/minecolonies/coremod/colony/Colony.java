@@ -1640,14 +1640,12 @@ public class Colony implements IColony
               getID(),
               tileEntity.getBlockType().getClass(),
               tileEntity.getPosition()));
-            if (tileEntity.isMirrored())
-            {
-                building.setMirror();
-            }
+            building.setMirror(tileEntity.isMirrored());
             if (!tileEntity.getStyle().isEmpty())
             {
                 building.setStyle(tileEntity.getStyle());
             }
+            building.setWithSubstitutionBlock(tileEntity.isWithSubstitutionBlock());
             ConstructionTapeHelper.placeConstructionTape(building, world);
         }
         else

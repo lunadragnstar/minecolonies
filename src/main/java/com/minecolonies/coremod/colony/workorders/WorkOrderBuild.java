@@ -49,6 +49,7 @@ public class WorkOrderBuild extends WorkOrderBuildDecoration
         this.upgradeName = building.getSchematicName() + level;
         this.buildingRotation = building.getRotation();
         this.isMirrored = building.getTileEntity() == null ? building.isMirrored() : building.getTileEntity().isMirrored();
+        this.withSubstitutionBlock = building.getTileEntity() == null ? building.isWithSubstitutionBlock() : building.getTileEntity().isWithSubstitutionBlock();
         this.cleared = level > 1;
 
         //normalize the structureName

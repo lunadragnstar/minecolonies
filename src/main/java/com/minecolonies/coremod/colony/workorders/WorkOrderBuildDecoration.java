@@ -20,11 +20,12 @@ import static com.minecolonies.api.util.constant.Suppression.UNUSED_METHOD_PARAM
  */
 public class WorkOrderBuildDecoration extends AbstractWorkOrder
 {
-    private static final String TAG_BUILDING       = "building";
-    private static final String TAG_WORKORDER_NAME = "workOrderName";
-    private static final String TAG_IS_CLEARED     = "cleared";
-    private static final String TAG_IS_REQUESTED   = "requested";
-    private static final String TAG_IS_MIRRORED    = "mirrored";
+    private static final String TAG_BUILDING          = "building";
+    private static final String TAG_WORKORDER_NAME    = "workOrderName";
+    private static final String TAG_IS_CLEARED        = "cleared";
+    private static final String TAG_IS_REQUESTED      = "requested";
+    private static final String TAG_IS_MIRRORED       = "mirrored";
+    private static final String TAG_WITH_SUBSTITUTION = "withsubstitution";
 
     private static final String TAG_SCHEMATIC_NAME    = "structureName";
     private static final String TAG_SCHEMATIC_MD5     = "schematicMD5";
@@ -37,6 +38,7 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
     protected String   md5;
     protected boolean  cleared;
     protected String   workOrderName;
+    protected boolean  withSubstitutionBlock;
 
     protected boolean hasSentMessageForThisWorkOrder = false;
     private boolean requested;
@@ -52,13 +54,14 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
     /**
      * Create a new work order telling the building to build a decoration.
      *
-     * @param structureName  The name of the decoration.
-     * @param workOrderName  The user friendly name of the decoration.
-     * @param rotation       The number of times the decoration was rotated.
-     * @param location       The location where the decoration should be built.
-     * @param mirror         Is the decoration mirrored?
+     * @param structureName         The name of the decoration.
+     * @param workOrderName         The user friendly name of the decoration.
+     * @param rotation              The number of times the decoration was rotated.
+     * @param location              The location where the decoration should be built.
+     * @param mirror                Is the decoration mirrored?
+     * @param withSubstitutionBlock Is the decoration mirrored?
      */
-    public WorkOrderBuildDecoration(final String structureName, final String workOrderName, final int rotation, final BlockPos location, final boolean mirror)
+    public WorkOrderBuildDecoration(final String structureName, final String workOrderName, final int rotation, final BlockPos location, final boolean mirror, final boolean withSubstitutionBlock)
     {
         super();
         //normalise structure name
@@ -69,6 +72,7 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
         this.buildingLocation = location;
         this.cleared = false;
         this.isMirrored = mirror;
+        this.withSubstitutionBlock = withSubstitutionBlock;
         this.requested = false;
     }
 
@@ -116,6 +120,7 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
         buildingRotation = compound.getInteger(TAG_BUILDING_ROTATION);
         requested = compound.getBoolean(TAG_IS_REQUESTED);
         isMirrored = compound.getBoolean(TAG_IS_MIRRORED);
+        withSubstitutionBlock = compound.getBoolean(TAG_WITH_SUBSTITUTION);
     }
 
     /**
@@ -148,6 +153,7 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
         compound.setInteger(TAG_BUILDING_ROTATION, buildingRotation);
         compound.setBoolean(TAG_IS_REQUESTED, requested);
         compound.setBoolean(TAG_IS_MIRRORED, isMirrored);
+        compound.setBoolean(TAG_WITH_SUBSTITUTION, withSubstitutionBlock);
     }
 
     /**
@@ -339,6 +345,17 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
     {
         return isMirrored;
     }
+
+    /**
+     * Check if the workOrder should be built with substitution block as is.
+     *
+     * @return true if so.
+     */
+    public boolean isWithSubstitutionBlock()
+    {
+        return withSubstitutionBlock;
+    }
+
 
     @Override
     public void onAdded(final Colony colony)

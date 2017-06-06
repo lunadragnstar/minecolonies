@@ -75,6 +75,11 @@ public abstract class AbstractBuilding
     private static final String TAG_MIRROR = "mirror";
 
     /**
+     * The tag to store the sithSubstitutionBlock of the building.
+     */
+    private static final String TAG_WITH_SUBSTITUTION = "withsubstitution";
+
+    /**
      * The tag to store the style of the building.
      */
     private static final String                  TAG_STYLE                    = "style";
@@ -195,6 +200,11 @@ public abstract class AbstractBuilding
      * The building style.
      */
     private String style = "wooden";
+
+    /**
+     * Usage of susbtitution block for the building.
+     */
+    private boolean withSubstitutionBlock = false;
 
     /**
      * Made to check if the building has to update the server/client.
@@ -1244,10 +1254,30 @@ public abstract class AbstractBuilding
     /**
      * Sets the mirror of the current building.
      */
-    public void setMirror()
+    public void setMirror(final boolean mirrored)
     {
-        this.isMirrored = !isMirrored;
+        this.isMirrored = mirrored;
     }
+
+    /**
+     * Sets the withSubstitutionBlock of the current building.
+     */
+    public void setWithSubstitutionBlock(final boolean withSubstitutionblock)
+    {
+        this.withSubstitutionBlock = withSubstitutionblock;
+    }
+
+    /**
+     * Returns if the current building should use substitution block.
+     *
+     * @return boolean value of the mirror.
+     */
+    public boolean isWithSubstitutionBlock()
+    {
+        return withSubstitutionBlock;
+    }
+
+
 
     /**
      * The AbstractBuilding View is the client-side representation of a AbstractBuilding.

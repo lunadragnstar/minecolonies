@@ -294,25 +294,27 @@ public abstract class AbstractBlockHut extends Block implements ITileEntityProvi
      * <p>
      * Override for custom logic.
      *
-     * @param worldIn the word we are in.
-     * @param pos     the position where the block was placed.
-     * @param state   the state the placed block is in.
-     * @param placer  the player placing the block.
-     * @param stack   the itemstack from where the block was placed.
-     * @param mirror  the mirror used.
-     * @param style   the style of the building
+     * @param worldIn               the word we are in.
+     * @param pos                   the position where the block was placed.
+     * @param state                 the state the placed block is in.
+     * @param placer                the player placing the block.
+     * @param stack                 the itemstack from where the block was placed.
+     * @param mirror                the mirror used.
+     * @param style                 the style of the building
+     * @param withSubstitutionBlock Wheter or not we build with substitution block
      * @see Block#onBlockPlacedBy(World, BlockPos, IBlockState,
      * EntityLivingBase, ItemStack)
      */
     public void onBlockPlacedByBuildTool(
-                                                @NotNull final World worldIn, @NotNull final BlockPos pos,
-                                                final IBlockState state, final EntityLivingBase placer, final ItemStack stack, final boolean mirror, final String style)
+                                                @NotNull final World worldIn, @NotNull final BlockPos pos, final IBlockState state, final EntityLivingBase placer,
+                                                final ItemStack stack, final boolean mirror, final String style, final boolean withSubstitutionBlock)
     {
         final TileEntity tileEntity = worldIn.getTileEntity(pos);
         if (tileEntity instanceof TileEntityColonyBuilding)
         {
             ((TileEntityColonyBuilding) tileEntity).setMirror(mirror);
             ((TileEntityColonyBuilding) tileEntity).setStyle(style);
+            ((TileEntityColonyBuilding) tileEntity).setWithSubstitutionBlock(withSubstitutionBlock);
         }
 
         onBlockPlacedBy(worldIn, pos, state, placer, stack);

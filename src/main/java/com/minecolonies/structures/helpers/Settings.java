@@ -16,18 +16,19 @@ public final class Settings
     /**
      * Single instance of this class.
      */
-    public static final Settings                 instance       = new Settings();
-    private final       BlockPos.MutableBlockPos offset         = new BlockPos.MutableBlockPos();
+    public static final Settings                 instance              = new Settings();
+    private final       BlockPos.MutableBlockPos offset                = new BlockPos.MutableBlockPos();
     /**
      * The position of the structure.
      */
-    private             BlockPos                 pos            = null;
-    private             boolean                  isMirrored     = false;
+    private             BlockPos                 pos                   = null;
+    private             boolean                  isMirrored            = false;
+    private             boolean                  withSubstitutionBlock = false;
     @Nullable
-    private             Structure                structure      = null;
-    private             int                      rotation       = 0;
-    private             String                   structureName  = null;
-    private             boolean                  isPendingReset = false;
+    private             Structure                structure             = null;
+    private             int                      rotation              = 0;
+    private             String                   structureName         = null;
+    private             boolean                  isPendingReset        = false;
 
     /**
      * Private constructor to hide implicit one.
@@ -114,6 +115,7 @@ public final class Settings
         offset.setPos(0, 0, 0);
         rotation = 0;
         isMirrored = false;
+        withSubstitutionBlock = false;
     }
 
     /**
@@ -157,6 +159,24 @@ public final class Settings
     public void setRotation(final int rotation)
     {
         this.rotation = rotation;
+    }
+
+    /**
+     * @return Whether or not we want to use substitution blocks.
+     */
+    public boolean isWithSubstitutionBlock()
+    {
+        return withSubstitutionBlock;
+    }
+
+    /**
+     * Sets whether or not we want substitution block
+     *
+     * @param withBlockSubstitution true is we want to render or build the substitution block.
+     */
+    public void setWithSubstitutionBlock(final boolean withSubstitutionBlock)
+    {
+        this.withSubstitutionBlock = withSubstitutionBlock;
     }
 
     /**

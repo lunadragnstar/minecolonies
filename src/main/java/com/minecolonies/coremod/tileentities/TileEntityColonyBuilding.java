@@ -22,9 +22,10 @@ public class TileEntityColonyBuilding extends TileEntityChest
     /**
      * NBTTag to store the colony id.
      */
-    private static final String TAG_COLONY = "colony";
-    private static final String TAG_MIRROR = "mirror";
-    private static final String TAG_STYLE  = "style";
+    private static final String TAG_COLONY       = "colony";
+    private static final String TAG_MIRROR       = "mirror";
+    private static final String TAG_STYLE        = "style";
+    private static final String TAG_SUBSTITUTION = "withsubstitution";
 
     /**
      * The colony id.
@@ -50,6 +51,11 @@ public class TileEntityColonyBuilding extends TileEntityChest
      * The style of the building.
      */
     private String style = "";
+
+    /**
+     * When true, we should use the substitution block instead of dirt.
+     */
+    private boolean withSubstitutionBlock = false;
 
     /**
      * Empty standard constructor.
@@ -238,6 +244,7 @@ public class TileEntityColonyBuilding extends TileEntityChest
         updateColonyReferences();
         mirror = compound.getBoolean(TAG_MIRROR);
         style = compound.getString(TAG_STYLE);
+        withSubstitutionBlock = compound.getBoolean(TAG_SUBSTITUTION);
     }
 
     @NotNull
@@ -254,6 +261,7 @@ public class TileEntityColonyBuilding extends TileEntityChest
         compound.setInteger(TAG_COLONY, colonyId);
         compound.setBoolean(TAG_MIRROR, mirror);
         compound.setString(TAG_STYLE, style);
+        compound.setBoolean(TAG_SUBSTITUTION, withSubstitutionBlock);
         return compound;
     }
 
@@ -309,6 +317,27 @@ public class TileEntityColonyBuilding extends TileEntityChest
     {
         return mirror;
     }
+
+    /**
+     * Set if the entity should use substitution block as is
+     *
+     * @param with true if so.
+     */
+    public void setWithSubstitutionBlock(final boolean with)
+    {
+        this.withSubstitutionBlock = with;
+    }
+
+    /**
+     * Check if building is using substitution block.
+     *
+     * @return true if so.
+     */
+    public boolean isWithSubstitutionBlock()
+    {
+        return withSubstitutionBlock;
+    }
+
 
     /**
      * Getter for the style.
