@@ -1,20 +1,18 @@
 package com.minecolonies.coremod.network.messages;
 
-import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.network.PacketUtils;
+import com.minecolonies.api.colony.IColonyManager;
+import com.minecolonies.api.network.PacketUtils;
 import io.netty.buffer.ByteBuf;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
 
 /**
  * Class handling the Server UUID Message.
  */
-public class ServerUUIDMessage implements IMessage, IMessageHandler<ServerUUIDMessage, IMessage>
+public class ServerUUIDMessage extends AbstractMessage<ServerUUIDMessage, IMessage>
 {
     private UUID serverUUID;
 
@@ -35,7 +33,7 @@ public class ServerUUIDMessage implements IMessage, IMessageHandler<ServerUUIDMe
     @Override
     public void toBytes(@NotNull final ByteBuf buf)
     {
-        PacketUtils.writeUUID(buf, ColonyManager.getServerUUID());
+        PacketUtils.writeUUID(buf, IColonyManager.getInstance().getServerUUID());
     }
 
     /**
@@ -45,13 +43,10 @@ public class ServerUUIDMessage implements IMessage, IMessageHandler<ServerUUIDMe
      *
      * @param message Message
      * @param ctx     Context
-     * @return Null
      */
-    @Nullable
     @Override
-    public IMessage onMessage(@NotNull final ServerUUIDMessage message, final MessageContext ctx)
+    protected void messageOnClientThread(final ServerUUIDMessage message, final MessageContext ctx)
     {
-        ColonyManager.setServerUUID(message.serverUUID);
-        return null;
+        IColonyManager.getInstance().setServerUUID(message.serverUUID);
     }
 }

@@ -4,9 +4,9 @@ import com.minecolonies.api.configuration.Configurations;
 import com.minecolonies.api.util.Log;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.renderer.BufferBuilder;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.VertexBuffer;
 import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.entity.Entity;
@@ -26,14 +26,28 @@ import java.util.concurrent.*;
 public final class Pathfinding
 {
     private static final BlockingQueue<Runnable> jobQueue = new LinkedBlockingDeque<>();
-    private static final ThreadPoolExecutor executor;
+    private static ThreadPoolExecutor executor;
+
     static
     {
-        executor = new ThreadPoolExecutor(1, Configurations.pathfindingMaxThreadCount, 10, TimeUnit.SECONDS, jobQueue);
+        executor = new ThreadPoolExecutor(1, Configurations.pathfinding.pathfindingMaxThreadCount, 10, TimeUnit.SECONDS, jobQueue);
     }
+
     private Pathfinding()
     {
         //Hides default constructor.
+    }
+
+    /**
+     * Creates a new thread pool for pathfinding jobs
+     */
+    public static ThreadPoolExecutor getExecutor()
+    {
+        if (executor == null)
+        {
+            executor = new ThreadPoolExecutor(1, Configurations.pathfinding.pathfindingMaxThreadCount, 10, TimeUnit.SECONDS, jobQueue);
+        }
+        return executor;
     }
 
     /**
@@ -44,7 +58,18 @@ public final class Pathfinding
      */
     public static Future<Path> enqueue(@NotNull final AbstractPathJob job)
     {
-        return executor.submit(job);
+        return getExecutor().submit(job);
+    }
+
+    /**
+     * Waits until all running pathfinding requests are finished
+     * Then stops all running threads in this thread pool
+     */
+    public static void shutdown()
+    {
+        getExecutor().shutdown();
+        executor = null;
+        jobQueue.clear();
     }
 
     /**
@@ -130,7 +155,7 @@ public final class Pathfinding
         GlStateManager.scale(0.25D, 0.25D, 0.25D);
 
         final Tessellator tessellator = Tessellator.getInstance();
-        final VertexBuffer vertexBuffer = tessellator.getBuffer();
+        final BufferBuilder vertexBuffer = tessellator.getBuffer();
         vertexBuffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION);
         GlStateManager.color(r, g, b);
 
@@ -192,7 +217,7 @@ public final class Pathfinding
     {
         final String s1 = String.format("F: %.3f [%d]", n.getCost(), n.getCounterAdded());
         final String s2 = String.format("G: %.3f [%d]", n.getScore(), n.getCounterVisited());
-        final FontRenderer fontrenderer = Minecraft.getMinecraft().fontRendererObj;
+        final FontRenderer fontrenderer = Minecraft.getMinecraft().fontRenderer;
         GlStateManager.pushAttrib();
         GlStateManager.pushMatrix();
         GlStateManager.translate(0.0F, 0.75F, 0.0F);
@@ -209,16 +234,16 @@ public final class Pathfinding
 
         GlStateManager.enableBlend();
         GlStateManager.tryBlendFuncSeparate(
-                GlStateManager.SourceFactor.SRC_ALPHA,
-                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
-                GlStateManager.SourceFactor.ONE,
-                GlStateManager.DestFactor.ZERO);
+          GlStateManager.SourceFactor.SRC_ALPHA,
+          GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+          GlStateManager.SourceFactor.ONE,
+          GlStateManager.DestFactor.ZERO);
         GlStateManager.disableTexture2D();
 
         final int i = Math.max(fontrenderer.getStringWidth(s1), fontrenderer.getStringWidth(s2)) / 2;
 
         final Tessellator tessellator = Tessellator.getInstance();
-        final VertexBuffer vertexBuffer = tessellator.getBuffer();
+        final BufferBuilder vertexBuffer = tessellator.getBuffer();
         vertexBuffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
         vertexBuffer.pos((double) (-i - 1), -5.0D, 0.0D).color(0.0F, 0.0F, 0.0F, 0.25F).endVertex();
         vertexBuffer.pos((double) (-i - 1), 12.0D, 0.0D).color(0.0F, 0.0F, 0.0F, 0.25F).endVertex();

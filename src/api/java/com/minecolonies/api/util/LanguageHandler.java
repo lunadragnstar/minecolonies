@@ -6,7 +6,7 @@ import net.minecraft.util.text.TextComponentTranslation;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
+import java.util.Set;
 
 /**
  * Helper class for localization and sending player messages.
@@ -135,18 +135,28 @@ public final class LanguageHandler
      * @param key     key of the message.
      * @param message the message.
      */
-    public static void sendPlayersMessage(@Nullable final List<EntityPlayer> players, final String key, final Object... message)
+    public static void sendPlayersMessage(@Nullable final Set<EntityPlayer> players, final String key, final Object... message)
+    {
+        final ITextComponent textComponent = buildChatComponent(key, message);
+        sendPlayersMessage(players, textComponent);
+    }
+
+    /**
+     * Send message to a list of players.
+     *
+     * @param players the list of players.
+     * @param component the text component..
+     */
+    public static void sendPlayersMessage(@Nullable final Set<EntityPlayer> players, final ITextComponent component)
     {
         if (players == null || players.isEmpty())
         {
             return;
         }
 
-        final ITextComponent textComponent = buildChatComponent(key, message);
-
         for (@NotNull final EntityPlayer player : players)
         {
-            player.sendMessage(textComponent);
+            player.sendMessage(component);
         }
     }
 }

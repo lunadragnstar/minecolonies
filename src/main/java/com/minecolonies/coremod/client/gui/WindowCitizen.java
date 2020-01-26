@@ -1,214 +1,123 @@
 package com.minecolonies.coremod.client.gui;
 
+import com.google.common.collect.ImmutableList;
+import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.ICitizenDataView;
+import com.minecolonies.api.colony.IColonyManager;
+import com.minecolonies.api.colony.buildings.views.IBuildingView;
+import com.minecolonies.api.colony.requestsystem.request.IRequest;
+import com.minecolonies.api.colony.requestsystem.request.RequestState;
+import com.minecolonies.api.colony.requestsystem.requestable.IDeliverable;
+import com.minecolonies.api.util.InventoryUtils;
 import com.minecolonies.api.util.LanguageHandler;
 import com.minecolonies.api.util.constant.Constants;
+import com.minecolonies.api.util.constant.HappinessConstants;
 import com.minecolonies.blockout.Alignment;
 import com.minecolonies.blockout.controls.Button;
-import com.minecolonies.blockout.controls.ButtonHandler;
 import com.minecolonies.blockout.controls.Image;
 import com.minecolonies.blockout.controls.Label;
+import com.minecolonies.blockout.views.SwitchView;
 import com.minecolonies.blockout.views.View;
-import com.minecolonies.blockout.views.Window;
 import com.minecolonies.coremod.MineColonies;
-import com.minecolonies.coremod.colony.CitizenData;
-import com.minecolonies.coremod.colony.CitizenDataView;
+import com.minecolonies.coremod.entity.citizen.citizenhandlers.CitizenHappinessHandler;
 import com.minecolonies.coremod.network.messages.OpenInventoryMessage;
+import com.minecolonies.coremod.network.messages.TransferItemsToCitizenRequestMessage;
+import com.minecolonies.coremod.network.messages.UpdateRequestStateMessage;
 import com.minecolonies.coremod.util.ExperienceUtils;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.Style;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
+import net.minecraftforge.items.wrapper.InvWrapper;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Predicate;
+
+import static com.minecolonies.api.util.constant.TranslationConstants.*;
+import static com.minecolonies.api.util.constant.WindowConstants.*;
 
 /**
  * Window for the citizen.
  */
-public class WindowCitizen extends Window implements ButtonHandler
+public class WindowCitizen extends AbstractWindowRequestTree
 {
-    /**
-     * The label to find the inventory button.
-     */
-    private static final String INVENTORY_BUTTON_ID     = "inventory";
-    /**
-     * The label to find the gui of the citizen.
-     */
-    private static final String CITIZEN_RESOURCE_SUFFIX = ":gui/windowcitizen.xml";
-    /**
-     * The label to find strength in the gui.
-     */
-    private static final String STRENGTH                = "strength";
-    /**
-     * The label to find endurance in the gui.
-     */
-    private static final String ENDURANCE               = "endurance";
-    /**
-     * The label to find charisma in the gui.
-     */
-    private static final String CHARISMA                = "charisma";
-    /**
-     * The label to find intelligence in the gui.
-     */
-    private static final String INTELLIGENCE            = "intelligence";
-    /**
-     * The label to find dexterity in the gui.
-     */
-    private static final String DEXTERITY               = "dexterity";
-
-    /**
-     * Xp-bar height.
-     */
-    private static final int XP_HEIGHT                    = 5;
-    /**
-     * The x-distance to the left border of the gui of the xpBar.
-     */
-    private static final int LEFT_BORDER_X                = 10;
-    /**
-     * The y-distance to the top-left border of the gui of the xpBar.
-     */
-    private static final int LEFT_BORDER_Y                = 10;
-    /**
-     * The column in which the icon starts.
-     */
-    private static final int XP_BAR_ICON_COLUMN           = 0;
-    /**
-     * The column where the icon ends.
-     */
-    private static final int XP_BAR_ICON_COLUMN_END       = 172;
-    /**
-     * The width of the end piece of the xpBar.
-     */
-    private static final int XP_BAR_ICON_COLUMN_END_WIDTH = 10;
-    /**
-     * The offset where the end should be placed in the GUI.
-     */
-    private static final int XP_BAR_ICON_END_OFFSET       = 90;
-    /**
-     * The width of the xpBar (Original width is halved to fit in the gui).
-     */
-    private static final int XP_BAR_WIDTH                 = 182 / 2;
-    /**
-     * The row where the empty xpBar starts.
-     */
-    private static final int XP_BAR_EMPTY_ROW             = 64;
-    /**
-     * The row where the full xpBar starts.
-     */
-    private static final int XP_BAR_FULL_ROW              = 69;
-    /**
-     * X position of the xpLabel.
-     */
-    private static final int XP_LABEL_X                   = -20;
-    /**
-     * Y position of the xpLabel.
-     */
-    private static final int XP_LABEL_Y                   = 38;
-
-    /**
-     * Row position of the empty heart icon.
-     */
-    private static final int EMPTY_HEART_ICON_ROW_POS = 16;
-    /**
-     * Row position of the full heart icon.
-     */
-    private static final int FULL_HEART_ICON_ROW_POS  = 53;
-    /**
-     * Row position of the half/full heart icon.
-     */
-    private static final int HALF_HEART_ICON_ROW_POS  = 62;
-    /**
-     * Column position of the heart icons.
-     */
-    private static final int HEART_ICON_COLUMN        = 0;
-    /**
-     * Dimension of the hearts.
-     */
-    private static final int HEART_ICON_HEIGHT_WIDTH  = 9;
-    /**
-     * The position x where the heart is placed.
-     */
-    private static final int HEART_ICON_POS_X         = 10;
-    /**
-     * The offset x where the next heart should be placed.
-     */
-    private static final int HEART_ICON_OFFSET_X      = 10;
-    /**
-     * The position y where the heart is placed.
-     */
-    private static final int HEART_ICON_POS_Y         = 10;
-
-    /**
-     * The position y where the saturation is placed.
-     */
-    private static final int SATURATION_ICON_POS_Y  = 10;
-
-    /**
-     * Column of the saturation icon.
-     */
-    private static final int SATURATION_ICON_COLUMN = 27;
-
-    /**
-     * Dimension of the hearts.
-     */
-    private static final int SATURATION_ICON_HEIGHT_WIDTH  = 9;
-
-    /**
-     * Saturation icon x position.
-     */
-    private static final int SATURATION_ICON_POS_X = 10;
-
-    /**
-     * Saturation item x offset.
-     */
-    private static final int SATURATION_ICON_OFFSET_X = 10;
-
-    /**
-     * The label to find name in the gui.
-     */
-    private static final String WINDOW_ID_NAME        = "name";
-    /**
-     * The label to find xpLabel in the gui.
-     */
-    private static final String WINDOW_ID_XP          = "xpLabel";
-    /**
-     * The label to find xpBar in the gui.
-     */
-    private static final String WINDOW_ID_XPBAR       = "xpBar";
-    /**
-     * The label to find healthBar in the gui.
-     */
-    private static final String WINDOW_ID_HEALTHBAR   = "healthBar";
-
-    /**
-     * The position of the empty saturation icon.
-     */
-    private static final int EMPTY_SATURATION_ITEM_ROW_POS = 16;
-
-    /**
-     * The position of the full saturation icon.
-     */
-    private static final int FULL_SATURATION_ITEM_ROW_POS = 16 + 36;
-
-    /**
-     * The position of the half saturation icon.
-     */
-    private static final int HALF_SATURATION_ITEM_ROW_POS = 16 + 45;
-
-    /**
-     * The saturation bar of the citizen.
-     */
-    private static final String WINDOW_ID_SATURATION_BAR = "saturationBar";
-
     /**
      * The citizenData.View object.
      */
-    private final CitizenDataView citizen;
+    private final ICitizenDataView citizen;
+
+    /**
+     * Enum for the available hearts
+     */
+    private enum HeartsEnum
+    {
+        EMPTY(Gui.ICONS, EMPTY_HEART_ICON_X, HEART_ICON_MC_Y, EMPTY_HEART_VALUE, null, null),
+        HALF_RED(Gui.ICONS, HALF_RED_HEART_ICON_X, HEART_ICON_MC_Y, RED_HEART_VALUE - 1, null, EMPTY),
+        RED(Gui.ICONS, RED_HEART_ICON_X, HEART_ICON_MC_Y, RED_HEART_VALUE, HALF_RED, EMPTY),
+        HALF_GOLDEN(Gui.ICONS, HALF_GOLD_HEART_ICON_X, HEART_ICON_MC_Y, GOLDEN_HEART_VALUE - 1, null, RED),
+        GOLDEN(Gui.ICONS, GOLD_HEART_ICON_X, HEART_ICON_MC_Y, GOLDEN_HEART_VALUE, HALF_GOLDEN, RED),
+        HALF_GREEN(GREEN_BLUE_ICON, GREEN_HALF_HEART_ICON_X, GREEN_HEARTS_ICON_Y, GREEN_HEART_VALUE - 1, null, GOLDEN),
+        GREEN(GREEN_BLUE_ICON, GREEN_HEART_ICON_X, GREEN_HEARTS_ICON_Y, GREEN_HEART_VALUE, HALF_GREEN, GOLDEN),
+        HALF_BLUE(GREEN_BLUE_ICON, BLUE_HALF_HEART_ICON_X, BLUE_HEARTS_ICON_Y, BLUE_HEART_VALUE - 1, null, GREEN),
+        BLUE(GREEN_BLUE_ICON, BLUE_HEART_ICON_X, BLUE_HEARTS_ICON_Y, BLUE_HEART_VALUE, HALF_BLUE, GREEN);
+
+        public final int              X;
+        public final int              Y;
+        public final int              hpValue;
+        public final HeartsEnum       prevHeart;
+        public final HeartsEnum       halfHeart;
+        public       boolean          isHalfHeart = false;
+        public final ResourceLocation Image;
+
+        HeartsEnum(
+          final ResourceLocation heartImage, final int x, final int y, final int hpValue,
+          final HeartsEnum halfHeart, final HeartsEnum prevHeart)
+        {
+            this.Image = heartImage;
+            this.X = x;
+            this.Y = y;
+            this.hpValue = hpValue;
+            this.halfHeart = halfHeart;
+            if (halfHeart == null)
+            {
+                isHalfHeart = true;
+            }
+            this.prevHeart = prevHeart;
+        }
+    }
+
+    /**
+     * Inventory of the player.
+     */
+    private final InventoryPlayer inventory = this.mc.player.inventory;
+
+    /**
+     * Is the player in creative or not.
+     */
+    private final boolean isCreative = this.mc.player.capabilities.isCreativeMode;
 
     /**
      * Constructor to initiate the citizen windows.
      *
      * @param citizen citizen to bind the window to.
      */
-    public WindowCitizen(final CitizenDataView citizen)
+    public WindowCitizen(final ICitizenDataView citizen)
     {
-        super(Constants.MOD_ID + CITIZEN_RESOURCE_SUFFIX);
+        super(citizen.getWorkBuilding(),Constants.MOD_ID + CITIZEN_RESOURCE_SUFFIX, IColonyManager.getInstance().getColonyView(citizen.getColonyId(), Minecraft.getMinecraft().world.provider.getDimension()));
         this.citizen = citizen;
+    }
+
+    @Override
+    public boolean canFulFill()
+    {
+        return true;
     }
 
     /**
@@ -217,65 +126,111 @@ public class WindowCitizen extends Window implements ButtonHandler
     @Override
     public void onOpened()
     {
+        super.onOpened();
         findPaneOfTypeByID(WINDOW_ID_NAME, Label.class).setLabelText(citizen.getName());
 
-        createHealthBar();
-        createSaturationBar();
-        createXpBar();
-        createSkillContent();
+        createHealthBar(citizen, findPaneOfTypeByID(WINDOW_ID_HEALTHBAR, View.class));
+        createSaturationBar(citizen, this);
+        createHappinessBar(citizen, this);
+        createXpBar(citizen, this);
+        createSkillContent(citizen, this);
+        updateHappiness(citizen, this);
+
+        //Tool of class:§rwith minimal level:§rWood or Gold§r and§rwith maximal level:§rWood or Gold§r
+
+        if (citizen.isFemale())
+        {
+            findPaneOfTypeByID(WINDOW_ID_GENDER, Image.class).setImage(FEMALE_SOURCE);
+        }
+
+        setPage("");
     }
 
     /**
      * Creates an health bar according to the citizen maxHealth and currentHealth.
      */
-    private void createHealthBar()
+    public static void createHealthBar(final ICitizenDataView citizen, final View healthBarView)
     {
-        findPaneOfTypeByID(WINDOW_ID_HEALTHBAR, View.class).setAlignment(Alignment.MIDDLE_RIGHT);
+        int health = (int) citizen.getHealth();
 
-        //MaxHealth (Black hearts).
-        for (int i = 0; i < citizen.getMaxHealth() / 2; i++)
+        healthBarView.setAlignment(Alignment.MIDDLE_RIGHT);
+        healthBarView.findPaneOfTypeByID(WINDOW_ID_HEALTHLABEL, Label.class).setLabelText(Integer.toString(health / 2));
+
+        // Add Empty heart background
+        for (int i = 0; i < MAX_HEART_ICONS; i++)
         {
-            @NotNull final Image heart = new Image();
-            heart.setImage(Gui.ICONS, EMPTY_HEART_ICON_ROW_POS, HEART_ICON_COLUMN, HEART_ICON_HEIGHT_WIDTH, HEART_ICON_HEIGHT_WIDTH);
-            heart.setPosition(i * HEART_ICON_POS_X + HEART_ICON_OFFSET_X, HEART_ICON_POS_Y);
-            findPaneOfTypeByID(WINDOW_ID_HEALTHBAR, View.class).addChild(heart);
+            addHeart(healthBarView, i, HeartsEnum.EMPTY);
         }
 
-        //Current health (Red hearts).
-        int heartPos;
-        for (heartPos = 0; heartPos < ((int) citizen.getHealth() / 2); heartPos++)
-        {
-            @NotNull final Image heart = new Image();
-            heart.setImage(Gui.ICONS, FULL_HEART_ICON_ROW_POS, HEART_ICON_COLUMN, HEART_ICON_HEIGHT_WIDTH, HEART_ICON_HEIGHT_WIDTH);
-            heart.setPosition(heartPos * HEART_ICON_POS_X + HEART_ICON_OFFSET_X, HEART_ICON_POS_Y);
-            findPaneOfTypeByID(WINDOW_ID_HEALTHBAR, View.class).addChild(heart);
-        }
+        // Current Heart we're filling
+        int heartPos = 0;
 
-        //Half hearts.
-        if (citizen.getHealth() / 2 % 1 > 0)
+        // Order we're filling the hearts with from high to low
+        final List<HeartsEnum> heartList = new ArrayList<>();
+        heartList.add(HeartsEnum.BLUE);
+        heartList.add(HeartsEnum.GREEN);
+        heartList.add(HeartsEnum.GOLDEN);
+        heartList.add(HeartsEnum.RED);
+
+        // Iterate through hearts
+        for (final HeartsEnum heart : heartList)
         {
-            @NotNull final Image heart = new Image();
-            heart.setImage(Gui.ICONS, HALF_HEART_ICON_ROW_POS, HEART_ICON_COLUMN, HEART_ICON_HEIGHT_WIDTH, HEART_ICON_HEIGHT_WIDTH);
-            heart.setPosition(heartPos * HEART_ICON_POS_X + HEART_ICON_OFFSET_X, HEART_ICON_POS_Y);
-            findPaneOfTypeByID(WINDOW_ID_HEALTHBAR, View.class).addChild(heart);
+            if (heart.isHalfHeart || heart.prevHeart == null)
+            {
+                continue;
+            }
+
+            // Add full hearts
+            for (int i = heartPos; i < MAX_HEART_ICONS && health > (heart.prevHeart.hpValue * MAX_HEART_ICONS + 1); i++)
+            {
+                addHeart(healthBarView, heartPos, heart);
+                health -= (heart.hpValue - heart.prevHeart.hpValue);
+                heartPos++;
+            }
+
+            // Add half heart
+            if (health % 2 == 1 && heartPos < MAX_HEART_ICONS && heart.halfHeart != null && health > heart.prevHeart.hpValue * MAX_HEART_ICONS)
+            {
+                addHeart(healthBarView, heartPos, heart.prevHeart);
+                addHeart(healthBarView, heartPos, heart.halfHeart);
+
+                health -= (heart.halfHeart.hpValue - heart.prevHeart.hpValue);
+                heartPos++;
+            }
+            // Finished
+            if (heartPos >= MAX_HEART_ICONS)
+            {
+                return;
+            }
         }
+    }
+
+    /**
+     * Adds a heart to the healthbarView at the given Position
+     */
+    private static void addHeart(final View healthBarView, final int heartPos, final HeartsEnum heart)
+    {
+        @NotNull final Image heartImage = new Image();
+        heartImage.setImage(heart.Image, heart.X, heart.Y, HEART_ICON_HEIGHT_WIDTH, HEART_ICON_HEIGHT_WIDTH, false);
+        heartImage.setPosition(heartPos * HEART_ICON_POS_X + HEART_ICON_OFFSET_X, HEART_ICON_POS_Y);
+        healthBarView.addChild(heartImage);
     }
 
     /**
      * Creates an health bar according to the citizen maxHealth and currentHealth.
      */
-    private void createSaturationBar()
+    public static void createSaturationBar(final ICitizenDataView citizen, final View view)
     {
-        findPaneOfTypeByID(WINDOW_ID_SATURATION_BAR, View.class).setAlignment(Alignment.MIDDLE_RIGHT);
+        view.findPaneOfTypeByID(WINDOW_ID_SATURATION_BAR, View.class).setAlignment(Alignment.MIDDLE_RIGHT);
 
         //Max saturation (Black food items).
-        for (int i = 0; i < CitizenData.MAX_SATURATION; i++)
+        for (int i = 0; i < ICitizenData.MAX_SATURATION; i++)
         {
             @NotNull final Image saturation = new Image();
-            saturation.setImage(Gui.ICONS, EMPTY_SATURATION_ITEM_ROW_POS, SATURATION_ICON_COLUMN, SATURATION_ICON_HEIGHT_WIDTH, SATURATION_ICON_HEIGHT_WIDTH);
+            saturation.setImage(Gui.ICONS, EMPTY_SATURATION_ITEM_ROW_POS, SATURATION_ICON_COLUMN, SATURATION_ICON_HEIGHT_WIDTH, SATURATION_ICON_HEIGHT_WIDTH, false);
 
             saturation.setPosition(i * SATURATION_ICON_POS_X + SATURATION_ICON_OFFSET_X, SATURATION_ICON_POS_Y);
-            findPaneOfTypeByID(WINDOW_ID_SATURATION_BAR, View.class).addChild(saturation);
+            view.findPaneOfTypeByID(WINDOW_ID_SATURATION_BAR, View.class).addChild(saturation);
         }
 
         //Current saturation (Full food hearts).
@@ -283,18 +238,49 @@ public class WindowCitizen extends Window implements ButtonHandler
         for (saturationPos = 0; saturationPos < ((int) citizen.getSaturation()); saturationPos++)
         {
             @NotNull final Image saturation = new Image();
-            saturation.setImage(Gui.ICONS, FULL_SATURATION_ITEM_ROW_POS, SATURATION_ICON_COLUMN, SATURATION_ICON_HEIGHT_WIDTH, SATURATION_ICON_HEIGHT_WIDTH);
+            saturation.setImage(Gui.ICONS, FULL_SATURATION_ITEM_ROW_POS, SATURATION_ICON_COLUMN, SATURATION_ICON_HEIGHT_WIDTH, SATURATION_ICON_HEIGHT_WIDTH, false);
             saturation.setPosition(saturationPos * SATURATION_ICON_POS_X + SATURATION_ICON_OFFSET_X, SATURATION_ICON_POS_Y);
-            findPaneOfTypeByID(WINDOW_ID_SATURATION_BAR, View.class).addChild(saturation);
+            view.findPaneOfTypeByID(WINDOW_ID_SATURATION_BAR, View.class).addChild(saturation);
         }
 
         //Half food items.
         if (citizen.getSaturation() / 2 % 1 > 0)
         {
             @NotNull final Image saturation = new Image();
-            saturation.setImage(Gui.ICONS, HALF_SATURATION_ITEM_ROW_POS, SATURATION_ICON_COLUMN, SATURATION_ICON_HEIGHT_WIDTH, SATURATION_ICON_HEIGHT_WIDTH);
+            saturation.setImage(Gui.ICONS, HALF_SATURATION_ITEM_ROW_POS, SATURATION_ICON_COLUMN, SATURATION_ICON_HEIGHT_WIDTH, SATURATION_ICON_HEIGHT_WIDTH, false);
             saturation.setPosition(saturationPos * SATURATION_ICON_POS_X + SATURATION_ICON_OFFSET_X, SATURATION_ICON_POS_Y);
-            findPaneOfTypeByID(WINDOW_ID_SATURATION_BAR, View.class).addChild(saturation);
+            view.findPaneOfTypeByID(WINDOW_ID_SATURATION_BAR, View.class).addChild(saturation);
+        }
+    }
+
+    /**
+     * +
+     * Creates an Happiness bar according to the citizen maxHappiness and currentHappiness.
+     */
+    private static void createHappinessBar(final ICitizenDataView citizen, final View view)
+    {
+        final double experienceRatio = (citizen.getHappiness() / HappinessConstants.MAX_HAPPINESS) * XP_BAR_WIDTH;
+        view.findPaneOfTypeByID(WINDOW_ID_HAPPINESS_BAR, View.class).setAlignment(Alignment.MIDDLE_RIGHT);
+        view.findPaneOfTypeByID(WINDOW_ID_HAPPINESS, Label.class).setLabelText(Integer.toString((int) citizen.getHappiness()));
+
+
+        @NotNull final Image xpBar = new Image();
+        xpBar.setImage(Gui.ICONS, XP_BAR_ICON_COLUMN, HAPPINESS_BAR_EMPTY_ROW, XP_BAR_WIDTH, XP_HEIGHT, false);
+        xpBar.setPosition(LEFT_BORDER_X, LEFT_BORDER_Y);
+
+        @NotNull final Image xpBar2 = new Image();
+        xpBar2.setImage(Gui.ICONS, XP_BAR_ICON_COLUMN_END, HAPPINESS_BAR_EMPTY_ROW, XP_BAR_ICON_COLUMN_END_WIDTH, XP_HEIGHT, false);
+        xpBar2.setPosition(XP_BAR_ICON_END_OFFSET + LEFT_BORDER_X, LEFT_BORDER_Y);
+
+        view.findPaneOfTypeByID(WINDOW_ID_HAPPINESS_BAR, View.class).addChild(xpBar);
+        view.findPaneOfTypeByID(WINDOW_ID_HAPPINESS_BAR, View.class).addChild(xpBar2);
+
+        if (experienceRatio > 0)
+        {
+            @NotNull final Image xpBarFull = new Image();
+            xpBarFull.setImage(Gui.ICONS, XP_BAR_ICON_COLUMN, HAPPINESS_BAR_FULL_ROW, (int) experienceRatio, XP_HEIGHT, false);
+            xpBarFull.setPosition(LEFT_BORDER_X, LEFT_BORDER_Y);
+            view.findPaneOfTypeByID(WINDOW_ID_HAPPINESS_BAR, View.class).addChild(xpBarFull);
         }
     }
 
@@ -302,50 +288,104 @@ public class WindowCitizen extends Window implements ButtonHandler
      * Creates the xp bar for each citizen.
      * Calculates an xpBarCap which is the maximum of xp to fit into the bar.
      * Then creates an xp bar and fills it up with the available xp.
+     *
+     * @param citizen the citizen.
+     * @param window  the window to fill.
      */
-    private void createXpBar()
+    public static void createXpBar(final ICitizenDataView citizen, final AbstractWindowSkeleton window)
     {
         //Calculates how much percent of the next level has been completed.
         final double experienceRatio = ExperienceUtils.getPercentOfLevelCompleted(citizen.getExperience(), citizen.getLevel());
-
-        findPaneOfTypeByID(WINDOW_ID_XP, Label.class).setLabelText(Integer.toString(citizen.getLevel()));
-        findPaneOfTypeByID(WINDOW_ID_XP, Label.class).setPosition(XP_LABEL_X, XP_LABEL_Y);
+        window.findPaneOfTypeByID(WINDOW_ID_XP, Label.class).setLabelText(Integer.toString(citizen.getLevel()));
 
         @NotNull final Image xpBar = new Image();
-        xpBar.setImage(Gui.ICONS, XP_BAR_ICON_COLUMN, XP_BAR_EMPTY_ROW, XP_BAR_WIDTH, XP_HEIGHT);
+        xpBar.setImage(Gui.ICONS, XP_BAR_ICON_COLUMN, XP_BAR_EMPTY_ROW, XP_BAR_WIDTH, XP_HEIGHT, false);
         xpBar.setPosition(LEFT_BORDER_X, LEFT_BORDER_Y);
 
         @NotNull final Image xpBar2 = new Image();
-        xpBar2.setImage(Gui.ICONS, XP_BAR_ICON_COLUMN_END, XP_BAR_EMPTY_ROW, XP_BAR_ICON_COLUMN_END_WIDTH, XP_HEIGHT);
+        xpBar2.setImage(Gui.ICONS, XP_BAR_ICON_COLUMN_END, XP_BAR_EMPTY_ROW, XP_BAR_ICON_COLUMN_END_WIDTH, XP_HEIGHT, false);
         xpBar2.setPosition(XP_BAR_ICON_END_OFFSET + LEFT_BORDER_X, LEFT_BORDER_Y);
 
-        findPaneOfTypeByID(WINDOW_ID_XPBAR, View.class).addChild(xpBar);
-        findPaneOfTypeByID(WINDOW_ID_XPBAR, View.class).addChild(xpBar2);
+        window.findPaneOfTypeByID(WINDOW_ID_XPBAR, View.class).addChild(xpBar);
+        window.findPaneOfTypeByID(WINDOW_ID_XPBAR, View.class).addChild(xpBar2);
 
         if (experienceRatio > 0)
         {
             @NotNull final Image xpBarFull = new Image();
-            xpBarFull.setImage(Gui.ICONS, XP_BAR_ICON_COLUMN, XP_BAR_FULL_ROW, (int) experienceRatio, XP_HEIGHT);
+            xpBarFull.setImage(Gui.ICONS, XP_BAR_ICON_COLUMN, XP_BAR_FULL_ROW, (int) experienceRatio, XP_HEIGHT, false);
             xpBarFull.setPosition(LEFT_BORDER_X, LEFT_BORDER_Y);
-            findPaneOfTypeByID(WINDOW_ID_XPBAR, View.class).addChild(xpBarFull);
+            window.findPaneOfTypeByID(WINDOW_ID_XPBAR, View.class).addChild(xpBarFull);
+        }
+    }
+
+    /**
+     * Creates an Happiness bar according to the citizen maxHappiness and currentHappiness.
+     *
+     * @param citizen pointer to the citizen data view
+     * @param window  pointer to the current window
+     */
+    public static void createHappinessBar(final ICitizenDataView citizen, final AbstractWindowSkeleton window)
+    {
+        //Calculates how much percent of the next level has been completed. 
+        final double experienceRatio = (citizen.getHappiness() / HappinessConstants.MAX_HAPPINESS) * XP_BAR_WIDTH;
+        window.findPaneOfTypeByID(WINDOW_ID_HAPPINESS_BAR, View.class).setAlignment(Alignment.MIDDLE_RIGHT);
+        window.findPaneOfTypeByID(WINDOW_ID_HAPPINESS, Label.class).setLabelText(Integer.toString((int) citizen.getHappiness()));
+
+        @NotNull final Image xpBar = new Image();
+        xpBar.setImage(Gui.ICONS, XP_BAR_ICON_COLUMN, HAPPINESS_BAR_EMPTY_ROW, XP_BAR_WIDTH, XP_HEIGHT, false);
+        xpBar.setPosition(LEFT_BORDER_X, LEFT_BORDER_Y);
+
+        @NotNull final Image xpBar2 = new Image();
+        xpBar2.setImage(Gui.ICONS, XP_BAR_ICON_COLUMN_END, HAPPINESS_BAR_EMPTY_ROW, XP_BAR_ICON_COLUMN_END_WIDTH, XP_HEIGHT, false);
+        xpBar2.setPosition(XP_BAR_ICON_END_OFFSET + LEFT_BORDER_X, LEFT_BORDER_Y);
+
+        window.findPaneOfTypeByID(WINDOW_ID_HAPPINESS_BAR, View.class).addChild(xpBar);
+        window.findPaneOfTypeByID(WINDOW_ID_HAPPINESS_BAR, View.class).addChild(xpBar2);
+
+        if (experienceRatio > 0)
+        {
+            @NotNull final Image xpBarFull = new Image();
+            xpBarFull.setImage(Gui.ICONS, XP_BAR_ICON_COLUMN, HAPPINESS_BAR_FULL_ROW, (int) experienceRatio, XP_HEIGHT, false);
+            xpBarFull.setPosition(LEFT_BORDER_X, LEFT_BORDER_Y);
+            window.findPaneOfTypeByID(WINDOW_ID_HAPPINESS_BAR, View.class).addChild(xpBarFull);
         }
     }
 
     /**
      * Fills the citizen gui with it's skill values.
+     *
+     * @param citizen the citizen to use.
+     * @param window  the window to fill.
      */
-    private void createSkillContent()
+    public static void createSkillContent(final ICitizenDataView citizen, final AbstractWindowSkeleton window)
     {
-        findPaneOfTypeByID(STRENGTH, Label.class).setLabelText(
+        window.findPaneOfTypeByID(STRENGTH, Label.class).setLabelText(
           LanguageHandler.format("com.minecolonies.coremod.gui.citizen.skills.strength", citizen.getStrength()));
-        findPaneOfTypeByID(ENDURANCE, Label.class).setLabelText(
+        window.findPaneOfTypeByID(ENDURANCE, Label.class).setLabelText(
           LanguageHandler.format("com.minecolonies.coremod.gui.citizen.skills.endurance", citizen.getEndurance()));
-        findPaneOfTypeByID(CHARISMA, Label.class).setLabelText(
+        window.findPaneOfTypeByID(CHARISMA, Label.class).setLabelText(
           LanguageHandler.format("com.minecolonies.coremod.gui.citizen.skills.charisma", citizen.getCharisma()));
-        findPaneOfTypeByID(INTELLIGENCE, Label.class).setLabelText(
+        window.findPaneOfTypeByID(INTELLIGENCE, Label.class).setLabelText(
           LanguageHandler.format("com.minecolonies.coremod.gui.citizen.skills.intelligence", citizen.getIntelligence()));
-        findPaneOfTypeByID(DEXTERITY, Label.class).setLabelText(
+        window.findPaneOfTypeByID(DEXTERITY, Label.class).setLabelText(
           LanguageHandler.format("com.minecolonies.coremod.gui.citizen.skills.dexterity", citizen.getDexterity()));
+    }
+
+    @Override
+    public ImmutableList<IRequest> getOpenRequestsFromBuilding(final IBuildingView building)
+    {
+        return building.getOpenRequests(citizen);
+    }
+
+    /**
+     * Go to the request list.
+     */
+    public void goToRequestList()
+    {
+        findPaneOfTypeByID(VIEW_HEAD, SwitchView.class).nextView();
+        buttonPrevPage.off();
+        buttonNextPage.off();
+        pageNum.off();
     }
 
     /**
@@ -356,9 +396,135 @@ public class WindowCitizen extends Window implements ButtonHandler
     @Override
     public void onButtonClicked(@NotNull final Button button)
     {
-        if (button.getID().equals(INVENTORY_BUTTON_ID))
+        switch (button.getID())
         {
-            MineColonies.getNetwork().sendToServer(new OpenInventoryMessage(citizen));
+            case BUTTON_REQUESTS:
+                goToRequestList();
+                break;
+            case BUTTON_BACK:
+                findPaneOfTypeByID(VIEW_HEAD, SwitchView.class).previousView();
+                setPage("");
+                break;
+            case INVENTORY_BUTTON_ID:
+                MineColonies.getNetwork().sendToServer(new OpenInventoryMessage(citizen.getName(), citizen.getEntityId()));
+                break;
+            default:
+                super.onButtonClicked(button);
+                break;
+        }
+    }
+
+    @Override
+    public void fulfill(@NotNull final Button button)
+    {
+        final int row = resourceList.getListElementIndexByPane(button);
+
+        if (getOpenRequestTreeOfBuilding().size() > row && row >= 0)
+        {
+            @NotNull final IRequest tRequest = getOpenRequestTreeOfBuilding().get(row).getRequest();
+
+            if (!(tRequest.getRequest() instanceof IDeliverable))
+            {
+                return;
+            }
+
+            @NotNull final IRequest<? extends IDeliverable> request = (IRequest<? extends IDeliverable>) tRequest;
+
+            final Predicate<ItemStack> requestPredicate = stack -> request.getRequest().matches(stack);
+            final int amount = request.getRequest().getCount();
+
+            final int count = InventoryUtils.getItemCountInItemHandler(new InvWrapper(inventory), requestPredicate);
+
+            if (!isCreative && count <= 0)
+            {
+                return;
+            }
+
+            // The itemStack size should not be greater than itemStack.getMaxStackSize, We send 1 instead
+            // and use quantity for the size
+            @NotNull final ItemStack itemStack;
+            if (isCreative)
+            {
+                itemStack = request.getDisplayStacks().stream().findFirst().orElse(ItemStack.EMPTY);
+            }
+            else
+            {
+                final List<Integer> slots = InventoryUtils.findAllSlotsInItemHandlerWith(new InvWrapper(inventory), requestPredicate);
+                final int invSize = inventory.getSizeInventory() - 5; // 4 armour slots + 1 shield slot
+                int slot = -1;
+                for (final Integer possibleSlot : slots)
+                {
+                    if (possibleSlot < invSize)
+                    {
+                        slot = possibleSlot;
+                        break;
+                    }
+                }
+
+                if (slot == -1)
+                {
+                    final ITextComponent chatMessage = new TextComponentString("<" + citizen.getName() + "> " +
+                            LanguageHandler.format(COM_MINECOLONIES_CANT_TAKE_EQUIPPED, citizen.getName()))
+                            .setStyle(new Style().setBold(false).setColor(TextFormatting.WHITE)
+                            );
+                    Minecraft.getMinecraft().player.sendMessage(chatMessage);
+
+                    return; // We don't have one that isn't in our armour slot
+                }
+                itemStack = inventory.getStackInSlot(slot);
+            }
+
+
+            if (citizen.getWorkBuilding() != null)
+            {
+                colony.getBuilding(citizen.getWorkBuilding()).onRequestedRequestComplete(colony.getRequestManager(), tRequest);
+            }
+            MineColonies.getNetwork().sendToServer(
+              new TransferItemsToCitizenRequestMessage(citizen, itemStack, isCreative ? amount : Math.min(amount, count), citizen.getColonyId()));
+            MineColonies.getNetwork().sendToServer(new UpdateRequestStateMessage(citizen.getColonyId(), request.getId(), RequestState.OVERRULED, itemStack));
+        }
+        button.disable();
+        updateRequests();
+    }
+
+    /**
+     * Update the display for the happiness
+     */
+    public static void updateHappiness(final ICitizenDataView citizen, final AbstractWindowSkeleton window)
+    {
+        int row = 1;
+        final double[] levels =
+          new double[] {citizen.getFoodModifier(), citizen.getHouseModifier(), citizen.getDamageModifier(), citizen.getJobModifier(), citizen.getFieldsModifier(),
+            citizen.getToolsModifiers()};
+        final String[] labelIds = new String[] {CMCG_HAPPINESS_FOOD, CMCG_HAPPINESS_DAMAGE, CMCG_HAPPINESS_HOUSE, CMCG_HAPPINESS_JOB, CMCG_HAPPINESS_FARMS, CMCG_HAPPINESS_TOOLS};
+
+        window.findPaneOfTypeByID(HAPPINESS_MODIFIER_PANE, View.class).setAlignment(Alignment.MIDDLE_RIGHT);
+        if (window.findPaneByID(HAPPINESS_MODIFIER_PANE) != null)
+        {
+            window.findPaneOfTypeByID("happinessModifier", Label.class).setLabelText(LanguageHandler.format("com.minecolonies.coremod.gui.happiness.happinessModifier"));
+
+            for (int i = 0; i < levels.length; i++)
+            {
+                final Image image = window.findPaneOfTypeByID("modifierImage" + row, Image.class);
+                if (levels[i] < 0)
+                {
+                    window.findPaneOfTypeByID("modifier" + row, Label.class).setLabelText(LanguageHandler.format(labelIds[i]));
+                    image.setImage(RED_ICON);
+                    row++;
+                }
+                else if (levels[i] > 0)
+                {
+                    window.findPaneOfTypeByID("modifier" + row, Label.class).setLabelText(LanguageHandler.format(labelIds[i]));
+                    image.setImage(GREEN_ICON);
+                    row++;
+                }
+            }
+
+            for (int i = row; i <= levels.length; i++)
+            {
+                final Image image = window.findPaneOfTypeByID("modifierImage" + i, Image.class);
+                image.hide();
+            }
         }
     }
 }

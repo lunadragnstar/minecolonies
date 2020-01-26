@@ -1,10 +1,15 @@
 package com.minecolonies.coremod.colony.jobs;
 
-import com.minecolonies.coremod.client.render.RenderBipedCitizen;
-import com.minecolonies.coremod.colony.CitizenData;
+import com.minecolonies.api.client.render.modeltype.BipedModelType;
+import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.jobs.ModJobs;
+import com.minecolonies.api.colony.jobs.registry.JobEntry;
+import com.minecolonies.api.sounds.FarmerSounds;
 import com.minecolonies.coremod.entity.ai.basic.AbstractAISkeleton;
 import com.minecolonies.coremod.entity.ai.citizen.farmer.EntityAIWorkFarmer;
+import net.minecraft.util.SoundEvent;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Job class of the farmer, handles his fields.
@@ -16,9 +21,15 @@ public class JobFarmer extends AbstractJob
      *
      * @param entity the entity to assign to the job.
      */
-    public JobFarmer(final CitizenData entity)
+    public JobFarmer(final ICitizenData entity)
     {
         super(entity);
+    }
+
+    @Override
+    public JobEntry getJobRegistryEntry()
+    {
+        return ModJobs.farmer;
     }
 
     @NotNull
@@ -30,9 +41,9 @@ public class JobFarmer extends AbstractJob
 
     @NotNull
     @Override
-    public RenderBipedCitizen.Model getModel()
+    public BipedModelType getModel()
     {
-        return RenderBipedCitizen.Model.FARMER;
+        return BipedModelType.FARMER;
     }
 
     /**
@@ -43,5 +54,36 @@ public class JobFarmer extends AbstractJob
     public AbstractAISkeleton<JobFarmer> generateAI()
     {
         return new EntityAIWorkFarmer(this);
+    }
+
+    @Override
+    public SoundEvent getBedTimeSound()
+    {
+        if (getCitizen() != null)
+        {
+            return getCitizen().isFemale() ? FarmerSounds.Female.offToBed : null;
+        }
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public SoundEvent getBadWeatherSound()
+    {
+        if (getCitizen() != null)
+        {
+            return getCitizen().isFemale() ? FarmerSounds.Female.badWeather : null;
+        }
+        return null;
+    }
+
+    @Override
+    public SoundEvent getMoveAwaySound()
+    {
+        if (getCitizen() != null)
+        {
+            return getCitizen().isFemale() ? FarmerSounds.Female.hostile : null;
+        }
+        return null;
     }
 }

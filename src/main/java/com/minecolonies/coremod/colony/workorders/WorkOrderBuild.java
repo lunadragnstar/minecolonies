@@ -1,15 +1,16 @@
 package com.minecolonies.coremod.colony.workorders;
 
-import com.minecolonies.api.util.BlockUtils;
+import com.ldtteam.structurize.management.StructureName;
+import com.ldtteam.structurize.management.Structures;
+import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.buildings.IBuilding;
+import com.minecolonies.api.colony.workorders.IWorkManager;
 import com.minecolonies.api.util.LanguageHandler;
 import com.minecolonies.api.util.Log;
-import com.minecolonies.coremod.blocks.AbstractBlockHut;
-import com.minecolonies.coremod.colony.CitizenData;
 import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.Structures;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
-import com.minecolonies.coremod.colony.buildings.BuildingBuilder;
-import net.minecraft.block.state.IBlockState;
+import com.minecolonies.coremod.colony.buildings.workerbuildings.BuildingBuilder;
+import com.minecolonies.coremod.entity.ai.citizen.builder.ConstructionTapeHelper;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -21,11 +22,16 @@ import org.jetbrains.annotations.NotNull;
  */
 public class WorkOrderBuild extends WorkOrderBuildDecoration
 {
-    private static final String TAG_UPGRADE_LEVEL  = "upgradeLevel";
-    private static final String TAG_UPGRADE_NAME   = "upgrade";
+    private static final String TAG_UPGRADE_LEVEL = "upgradeLevel";
+    private static final String TAG_UPGRADE_NAME  = "upgrade";
 
-    private   int      upgradeLevel;
-    private   String   upgradeName;
+    /**
+     * Max distance a builder can have from the building site.
+     */
+    private static final double MAX_DISTANCE_SQ = 100*100;
+
+    private int    upgradeLevel;
+    private String upgradeName;
 
     /**
      * Unused constructor for reflection.
@@ -41,23 +47,23 @@ public class WorkOrderBuild extends WorkOrderBuildDecoration
      * @param building the building to build.
      * @param level    the level it should have.
      */
-    public WorkOrderBuild(@NotNull final AbstractBuilding building, final int level)
+    public WorkOrderBuild(@NotNull final IBuilding building, final int level)
     {
         super();
         this.buildingLocation = building.getID();
         this.upgradeLevel = level;
         this.upgradeName = building.getSchematicName() + level;
         this.buildingRotation = building.getRotation();
-        this.isMirrored = building.getTileEntity() == null ? building.isMirrored() : building.getTileEntity().isMirrored();
+        this.isBuildingMirrored = building.getTileEntity() == null ? building.isMirrored() : building.getTileEntity().isMirrored();
         this.cleared = level > 1;
 
         //normalize the structureName
-        Structures.StructureName sn = new Structures.StructureName(Structures.SCHEMATICS_PREFIX, building.getStyle(), this.getUpgradeName());
-        if(building.getTileEntity() != null && !building.getTileEntity().getStyle().isEmpty())
+        StructureName sn = new StructureName(Structures.SCHEMATICS_PREFIX, building.getStyle(), this.getUpgradeName());
+        if (building.getTileEntity() != null && !building.getTileEntity().getStyle().isEmpty())
         {
             final String previousStructureName = sn.toString();
-            sn = new Structures.StructureName(Structures.SCHEMATICS_PREFIX, building.getTileEntity().getStyle(), this.getUpgradeName());
-            Log.getLogger().info("WorkOrderBuild at location " + this.buildingLocation + " is using " +  sn + " instead of " + previousStructureName);
+            sn = new StructureName(Structures.SCHEMATICS_PREFIX, building.getTileEntity().getStyle(), this.getUpgradeName());
+            Log.getLogger().info("WorkOrderBuild at location " + this.buildingLocation + " is using " + sn + " instead of " + previousStructureName);
         }
 
 
@@ -71,20 +77,22 @@ public class WorkOrderBuild extends WorkOrderBuildDecoration
      *
      * @return Name after upgrade.
      */
-    private String getUpgradeName()
+    public String getUpgradeName()
     {
         return upgradeName;
     }
 
+
+
     /**
      * Read the WorkOrder data from the NBTTagCompound.
-     *
-     * @param compound NBT Tag compound.
+     *  @param compound NBT Tag compound.
+     * @param manager
      */
     @Override
-    public void readFromNBT(@NotNull final NBTTagCompound compound)
+    public void readFromNBT(@NotNull final NBTTagCompound compound, final IWorkManager manager)
     {
-        super.readFromNBT(compound);
+        super.readFromNBT(compound, manager);
         upgradeLevel = compound.getInteger(TAG_UPGRADE_LEVEL);
         upgradeName = compound.getString(TAG_UPGRADE_NAME);
     }
@@ -100,53 +108,6 @@ public class WorkOrderBuild extends WorkOrderBuildDecoration
         super.writeToNBT(compound);
         compound.setInteger(TAG_UPGRADE_LEVEL, upgradeLevel);
         compound.setString(TAG_UPGRADE_NAME, upgradeName);
-    }
-
-    /**
-     * Is this WorkOrder still valid?  If not, it will be deleted.
-     *
-     * @param colony The colony that owns the Work Order.
-     * @return True if the building for this work order still exists.
-     */
-    @Override
-    public boolean isValid(@NotNull final Colony colony)
-    {
-        return colony.getBuilding(buildingLocation) != null;
-    }
-
-    @Override
-    protected String getValue()
-    {
-        return upgradeName;
-    }
-
-    private static boolean isLocationTownhall(@NotNull final Colony colony, final BlockPos buildingLocation)
-    {
-        return colony.hasTownHall() && colony.getTownHall() != null && colony.getTownHall().getID().equals(buildingLocation);
-    }
-
-    /**
-     * Returns the level up level of the building.
-     *
-     * @return Level after upgrade.
-     */
-    public int getUpgradeLevel()
-    {
-        return upgradeLevel;
-    }
-
-    @Override
-    protected boolean canBuild(@NotNull final CitizenData citizen)
-    {
-        //  A Build WorkOrder may be fulfilled by a Builder as long as any ONE of the following is true:
-        //  - The Builder's Work AbstractBuilding is built
-        //  - OR the WorkOrder is for the Builder's Work AbstractBuilding
-        //  - OR the WorkOrder is for the TownHall
-
-        final int builderLevel = citizen.getWorkBuilding().getBuildingLevel();
-        return builderLevel >= upgradeLevel || builderLevel == BuildingBuilder.MAX_BUILDING_LEVEL
-                 || (citizen.getWorkBuilding() != null && citizen.getWorkBuilding().getID().equals(buildingLocation))
-                 || isLocationTownhall(citizen.getColony(), buildingLocation);
     }
 
     @Override
@@ -173,35 +134,96 @@ public class WorkOrderBuild extends WorkOrderBuildDecoration
     }
 
     @Override
+    public boolean canBuild(@NotNull final ICitizenData citizen)
+    {
+        //  A Build WorkOrder may be fulfilled by a Builder as long as any ONE of the following is true:
+        //  - The Builder's Work AbstractBuilding is built
+        //  - OR the WorkOrder is for the Builder's Work AbstractBuilding
+        //  - OR the WorkOrder is for the TownHall
+        //  - OR the WorkOrder is not farther away than 100 blocks from any builder
+
+        final int builderLevel = citizen.getWorkBuilding().getBuildingLevel();
+        return (builderLevel >= upgradeLevel || builderLevel == BuildingBuilder.MAX_BUILDING_LEVEL
+                  || (citizen.getWorkBuilding() != null && citizen.getWorkBuilding().getID().equals(buildingLocation))
+                  || isLocationTownhall(citizen.getColony(), buildingLocation)
+                       && citizen.getWorkBuilding().getPosition().distanceSq(this.getBuildingLocation()) <= MAX_DISTANCE_SQ);
+    }
+
+    @Override
+    public boolean tooFarFromAnyBuilder(final IColony colony, final int level)
+    {
+        return colony.getBuildingManager().getBuildings().values().stream().noneMatch(building -> building instanceof BuildingBuilder && building.getMainCitizen() != null && building.getPosition().distanceSq(this.getBuildingLocation()) <= MAX_DISTANCE_SQ);
+    }
+
+    /**
+     * Is this WorkOrder still valid?  If not, it will be deleted.
+     *
+     * @param colony The colony that owns the Work Order.
+     * @return True if the building for this work order still exists.
+     */
+    @Override
+    public boolean isValid(@NotNull final IColony colony)
+    {
+        return colony.getBuildingManager().getBuilding(buildingLocation) != null;
+    }
+
+    @Override
+    protected String getValue()
+    {
+        return upgradeName;
+    }
+
+    @Override
     public int getRotation(final World world)
     {
-        if (buildingRotation == 0 && world != null)
-        {
-            final IBlockState blockState = world.getBlockState(buildingLocation);
-            if (blockState.getBlock() instanceof AbstractBlockHut)
-            {
-                return BlockUtils.getRotationFromFacing(blockState.getValue(AbstractBlockHut.FACING));
-            }
-        }
         return buildingRotation;
     }
 
     @Override
-    public void onCompleted(final Colony colony)
+    public void onAdded(final IColony colony, final boolean readingFromNbt)
     {
-        final BlockPos buildingLocation = getBuildingLocation();
-        final AbstractBuilding building = colony.getBuilding(buildingLocation);
-        colony.onBuildingUpgradeComplete(building, getUpgradeLevel());
+        if (!readingFromNbt && colony != null && colony.getWorld() != null)
+        {
+            final IBuilding building = colony.getBuildingManager().getBuilding(this.getBuildingLocation());
+            if (building != null)
+            {
+                ConstructionTapeHelper.placeConstructionTape(building.getPosition(), building.getCorners(), colony.getWorld());
+            }
+        }
     }
 
     @Override
-    public void onRemoved(final Colony colony)
+    public void onRemoved(final IColony colony)
     {
-        super.onRemoved(colony);
-        final AbstractBuilding building = colony.getBuilding(getBuildingLocation());
+        final IBuilding building = colony.getBuildingManager().getBuilding(getBuildingLocation());
         if (building != null)
         {
             building.markDirty();
+            ConstructionTapeHelper.removeConstructionTape(building.getCorners(), colony.getWorld());
         }
+    }
+
+    private static boolean isLocationTownhall(@NotNull final IColony colony, final BlockPos buildingLocation)
+    {
+        return colony.hasTownHall() && colony.getBuildingManager().getTownHall() != null && colony.getBuildingManager().getTownHall().getID().equals(buildingLocation);
+    }
+
+    @Override
+    public void onCompleted(final IColony colony)
+    {
+        super.onCompleted(colony);
+        final BlockPos buildingLocation = getBuildingLocation();
+        final IBuilding building = colony.getBuildingManager().getBuilding(buildingLocation);
+        colony.onBuildingUpgradeComplete(building, getUpgradeLevel());
+    }
+
+    /**
+     * Returns the level up level of the building.
+     *
+     * @return Level after upgrade.
+     */
+    public int getUpgradeLevel()
+    {
+        return upgradeLevel;
     }
 }

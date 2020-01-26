@@ -1,16 +1,25 @@
 package com.minecolonies.api.colony.requestsystem;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import com.google.common.reflect.TypeToken;
+import com.minecolonies.api.colony.requestsystem.factory.FactoryVoidInput;
 import com.minecolonies.api.colony.requestsystem.factory.IFactory;
 import com.minecolonies.api.colony.requestsystem.factory.IFactoryController;
+import com.minecolonies.api.colony.requestsystem.factory.ITypeOverrideHandler;
 import com.minecolonies.api.util.Log;
+import com.minecolonies.api.util.ReflectionUtils;
+import com.minecolonies.api.util.constant.Suppression;
+import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.Tuple;
+import net.minecraftforge.fml.common.network.ByteBufUtils;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import static com.minecolonies.api.util.constant.Suppression.RAWTYPES;
-import static com.minecolonies.api.util.constant.Suppression.UNCHECKED;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Default implementation of a FactoryController
@@ -20,36 +29,76 @@ public final class StandardFactoryController implements IFactoryController
 {
 
     ////// --------------------------- NBTConstants --------------------------- \\\\\\
-    private static final String NBT_TYPE = "Type";
-    private static final String NBT_DATA = "Data";
+    public static final String NBT_TYPE = "Type";
+    public static final String NBT_DATA = "Data";
     ////// --------------------------- NBTConstants --------------------------- \\\\\\
 
     /**
      * Instance variable.
      */
-    private static final StandardFactoryController INSTANCE       = new StandardFactoryController();
+    private static final StandardFactoryController     INSTANCE              = new StandardFactoryController();
     /**
-     * Input mappings.
+     * Primary (main) INPUT mappings.
      */
-    @SuppressWarnings(RAWTYPES)
     @NotNull
-    private final        Map<Class, IFactory>      inputMappings  = new HashMap<>();
+    private final        Map<TypeToken, Set<IFactory>> primaryInputMappings  = new HashMap<>();
     /**
-     * Output mappings.
+     * Primary (main) OUTPUT mappings.
      */
-    @SuppressWarnings(RAWTYPES)
     @NotNull
-    private final        Map<Class, IFactory>      outputMappings = new HashMap<>();
+    private final        Map<TypeToken, Set<IFactory>> primaryOutputMappings = new HashMap<>();
+
+    /**
+     * Secondary (super) output mappings
+     */
+    @NotNull
+    private final Map<TypeToken, Set<IFactory>>                secondaryOutputMappings = new HashMap<>();
+    /**
+     * A cache that holds all Mappers and their search secondary IO types.
+     * Filled during runtime to speed up searches to factories when both INPUT and OUTPUT type are secondary types.
+     */
+    @NotNull
+    private final Cache<Tuple<TypeToken, TypeToken>, IFactory> secondaryMappingsCache  = CacheBuilder.newBuilder().build();
+
+    /**
+     * List of the override handlers.
+     */
+    @NotNull
+    private final List<ITypeOverrideHandler> typeOverrideHandlers = new ArrayList<>();
+
+    /**
+     * Map that handles class renamings during deserialization from older data.
+     */
+    @NotNull
+    private final BiMap<String, String> classRenamingHandlers = HashBiMap.create();
 
     /**
      * Private constructor. Throws IllegalStateException if already created.
+     *
+     * We suppress warning squid:S2583 which makes sure that no null checks are executed on notnull fields.
+     * In this case it makes sense since we need to make sure.
+     *
      */
+    @SuppressWarnings("squid:S2583")
     private StandardFactoryController()
     {
         if (INSTANCE != null)
         {
             throw new IllegalStateException("StandardFactoryController");
         }
+    }
+
+    /**
+     * Resets the FactoryController to the default values.
+     * Clears all registered Factories.
+     * <p>
+     * Only used for testing.
+     */
+    public static void reset()
+    {
+        getInstance().primaryInputMappings.clear();
+        getInstance().primaryOutputMappings.clear();
+        getInstance().secondaryOutputMappings.clear();
     }
 
     /**
@@ -62,129 +111,220 @@ public final class StandardFactoryController implements IFactoryController
         return INSTANCE;
     }
 
-    /**
-     * Method used to get a factory for a given input class.
-     *
-     * @param clazz The class of the input type of the requested factory.
-     * @return The factory that can handle the given input class.
-     *
-     * @throws IllegalArgumentException is thrown when the given input class is unknown to this Factory Controller.
-     */
+    @SuppressWarnings(Suppression.UNCHECKED)
     @Override
-    @SuppressWarnings(UNCHECKED)
-    public <Input> IFactory<Input, ?> getFactoryForInput(@NotNull final Class<? extends Input> clazz) throws IllegalArgumentException
+    public <INPUT, OUTPUT> IFactory<INPUT, OUTPUT> getFactoryForIO(@NotNull final TypeToken<? extends INPUT> inputClass, @NotNull final TypeToken<? extends OUTPUT> outputClass) throws IllegalArgumentException
     {
-        if (!inputMappings.containsKey(clazz))
-        {
-            throw new IllegalArgumentException("The given class(name) has no been registered to this Factory.");
-        }
+        final ITypeOverrideHandler<?> inputOverrideHandler = typeOverrideHandlers.stream().filter(h -> h.matches(inputClass)).findFirst().orElse(null);
+        final ITypeOverrideHandler<OUTPUT> outputOverrideHandler = typeOverrideHandlers.stream().filter(h -> h.matches(outputClass)).findFirst().orElse(null);
 
-        return inputMappings.get(clazz);
+        final TypeToken input = inputOverrideHandler != null ? inputOverrideHandler.getOutputType() : inputClass;
+        final TypeToken output = outputOverrideHandler != null ? outputOverrideHandler.getOutputType() : outputClass;
+        try
+        {
+            //Request from cache or search.
+            return secondaryMappingsCache.get(new Tuple<>(input, output), () ->
+            {
+                final Set<TypeToken> secondaryInputSet = ReflectionUtils.getSuperClasses(input);
+
+                for (final TypeToken secondaryInputClass : secondaryInputSet)
+                {
+                    final Set<IFactory> factories = primaryInputMappings.get(secondaryInputClass);
+                    if (factories == null || factories.isEmpty())
+                    {
+                        continue;
+                    }
+
+                    for (final IFactory factory : factories)
+                    {
+                        final Set<TypeToken> secondaryOutputSet = ReflectionUtils.getSuperClasses(factory.getFactoryOutputType());
+                        if (secondaryOutputSet.contains(output))
+                        {
+                            return factory;
+                        }
+                    }
+                }
+
+                throw new IllegalArgumentException("No factory found with the given IO types: " + input + " ->" + output);
+            });
+        }
+        catch (final ExecutionException e)
+        {
+            throw (IllegalArgumentException) new IllegalArgumentException("No factory found with the given IO types: " + input + " ->" + output).initCause(e);
+        }
     }
 
-    /**
-     * Method used to get a factory for a given output class.
-     *
-     * @param clazz The class of the output type of the requested factory.
-     * @return The factory that can handle the given output class.
-     *
-     * @throws IllegalArgumentException is thrown when the given output class is unknown to this Factory Controller.
-     */
     @Override
-    @SuppressWarnings({UNCHECKED, RAWTYPES})
-    public <Output> IFactory<?, Output> getFactoryForOutput(@NotNull final Class<? extends Output> clazz) throws IllegalArgumentException
+    public <INPUT> IFactory<INPUT, ?> getFactoryForInput(@NotNull final TypeToken<? extends INPUT> inputClass) throws IllegalArgumentException
     {
-        if (!inputMappings.containsKey(clazz))
+        final ITypeOverrideHandler<?> inputOverrideHandler = typeOverrideHandlers.stream().filter(h -> h.matches(inputClass)).findFirst().orElse(null);
+
+        final TypeToken input = inputOverrideHandler != null ? inputOverrideHandler.getOutputType() : inputClass;
+
+        final Set<TypeToken> secondaryInputSet = ReflectionUtils.getSuperClasses(input);
+
+        for (final TypeToken secondaryInputClass : secondaryInputSet)
         {
-            throw new IllegalArgumentException("The given class(name) has not been registered to this Factory.");
+            final Set<IFactory> factories = primaryInputMappings.get(secondaryInputClass);
+
+            if (factories != null && !factories.isEmpty())
+            {
+                return factories.stream().findFirst().get();
+            }
         }
 
-        return outputMappings.get(clazz);
+        throw new IllegalArgumentException("The given input type is not a input of a factory.");
     }
 
-    /**
-     * Method used to register a new factory to this controller.
-     *
-     * @param factory  The new factory.
-     * @param <Input>  The type of input the factory accepts.
-     * @param <Output> The type of output the factory produces.
-     * @throws IllegalArgumentException if there is already a factory registered with either the given input and/or the given output.
-     */
     @Override
-    public <Input, Output> void registerNewFactory(@NotNull final IFactory<Input, Output> factory) throws IllegalArgumentException
+    public <OUTPUT> IFactory<?, OUTPUT> getFactoryForOutput(@NotNull final TypeToken<? extends OUTPUT> outputClass) throws IllegalArgumentException
     {
-        if (inputMappings.containsKey(factory.getFactoryInputType()))
+        final ITypeOverrideHandler<OUTPUT> outputOverrideHandler = typeOverrideHandlers.stream().filter(h -> h.matches(outputClass)).findFirst().orElse(null);
+
+        final TypeToken output = outputOverrideHandler != null ? outputOverrideHandler.getOutputType() : outputClass;
+
+        if (!primaryOutputMappings.containsKey(output) || primaryOutputMappings.get(output).isEmpty())
         {
-            throw new IllegalArgumentException("A factory with the given input type is already registered!");
+            if (!secondaryOutputMappings.containsKey(output))
+            {
+                throw new IllegalArgumentException("The given output type is not a output of a factory");
+            }
+
+            //Exists as the type exists in the secondary mapping. No specific output is requested, so we will take the first one.
+            return secondaryOutputMappings.get(output).stream().findFirst().get();
         }
 
-        if (outputMappings.containsKey(factory.getFactoryOutputType()))
-        {
-            throw new IllegalArgumentException("A factory with the given output type is already registered!");
-        }
-
-        Log.getLogger()
-          .debug("Registering factory: " + factory.toString() + " with input: " + factory.getFactoryInputType().getName() + " and output: " + factory.getFactoryOutputType() + ".");
-        inputMappings.put(factory.getFactoryInputType(), factory);
-        outputMappings.put(factory.getFactoryOutputType(), factory);
+        return primaryOutputMappings.get(output).stream().findFirst().get();
     }
 
-    /**
-     * Method used to quickly serialize a object if it is known to this controller.
-     *
-     * @param object The object to serialize.
-     * @return An NBTTag containing a serialized version of the given object.
-     *
-     * @throws IllegalArgumentException is thrown when the output type is unknown to this controller.
-     */
     @Override
-    @SuppressWarnings(UNCHECKED)
-    public <Output> NBTTagCompound serialize(@NotNull final Output object) throws IllegalArgumentException
+    public <INPUT, OUTPUT> void registerNewFactory(@NotNull final IFactory<INPUT, OUTPUT> factory) throws IllegalArgumentException
+    {
+        primaryInputMappings.putIfAbsent(factory.getFactoryInputType(), new HashSet<>());
+        primaryOutputMappings.putIfAbsent(factory.getFactoryOutputType(), new HashSet<>());
+
+        final Set<IFactory> primaryInputFactories = primaryInputMappings.get(factory.getFactoryInputType());
+        final Set<IFactory> primaryOutputFactories = primaryOutputMappings.get(factory.getFactoryOutputType());
+
+        if (primaryInputFactories.contains(factory) || primaryOutputFactories.contains(factory))
+        {
+            throw new IllegalArgumentException("Cannot register the same factory twice!");
+        }
+
+        primaryInputFactories.add(factory);
+        primaryOutputFactories.add(factory);
+
+        final Set<TypeToken> outputSuperTypes = ReflectionUtils.getSuperClasses(factory.getFactoryOutputType());
+
+        outputSuperTypes.remove(factory.getFactoryOutputType());
+
+        if (!outputSuperTypes.isEmpty())
+        {
+            outputSuperTypes.forEach(t ->
+            {
+                if (!secondaryOutputMappings.containsKey(t))
+                {
+                    secondaryOutputMappings.put(t, new HashSet<>());
+                }
+
+                secondaryOutputMappings.get(t).add(factory);
+            });
+        }
+    }
+
+    @Override
+    @SuppressWarnings(Suppression.UNCHECKED)
+    public <OUTPUT> NBTTagCompound serialize(@NotNull final OUTPUT object) throws IllegalArgumentException
     {
         final NBTTagCompound compound = new NBTTagCompound();
 
-        final IFactory<?, Output> factory = getFactoryForOutput((Class<? extends Output>) object.getClass());
-
+        final IFactory<?, OUTPUT> factory = getFactoryForOutput((TypeToken<? extends OUTPUT>) TypeToken.of(object.getClass()));
         compound.setString(NBT_TYPE, object.getClass().getName());
         compound.setTag(NBT_DATA, factory.serialize(this, object));
 
         return compound;
     }
 
-    /**
-     * Method used to quickly deserialize a object if it is known to this controller.
-     *
-     * @param compound The data to deserialize an object from.
-     * @return The deserialized version of the given data.
-     *
-     * @throws IllegalArgumentException is thrown when the type stored in the data is unknown to this controller.
-     */
     @Override
-    @SuppressWarnings(UNCHECKED)
-    public <Output> Output deserialize(@NotNull final NBTTagCompound compound) throws IllegalArgumentException
+    @SuppressWarnings(Suppression.UNCHECKED)
+    public <OUTPUT> OUTPUT deserialize(@NotNull final NBTTagCompound compound) throws IllegalArgumentException
     {
-        final String className = compound.getString(NBT_TYPE);
+        String className = compound.getString(NBT_TYPE);
+        className = processClassRenaming(className);
 
-        final IFactory<?, Output> factory = getFactoryForOutput(className);
-        return factory.deserialize(this, compound.getCompoundTag(NBT_DATA));
+        final IFactory<?, OUTPUT> factory;
+
+        try
+        {
+            factory = getFactoryForOutput(className);
+        }
+        catch (final IllegalArgumentException e)
+        {
+            throw (IllegalArgumentException) new IllegalArgumentException("The given compound holds an unknown output type for this Controller").initCause(e);
+        }
+
+        try
+        {
+            return factory.deserialize(this, compound.getCompoundTag(NBT_DATA));
+        }
+        catch (Throwable throwable)
+        {
+            Log.getLogger().error(throwable);
+            return null;
+        }
     }
 
-    /**
-     * Method used to create a new instance of the given input.
-     *
-     * @param input   The input to process.
-     * @param context The context for the creation.
-     * @return The output from the factory, created by the given input and output.
-     *
-     * @throws IllegalArgumentException thrown when the output and input do not match a factory known to this controller.
-     * @throws ClassCastException       thrown when a Factory is known for the given input, but does not produce the given output.
-     */
-    @Override
-    @SuppressWarnings(UNCHECKED)
-    public <Input, Output> Output getNewInstance(@NotNull final Input input, @NotNull final Object... context) throws IllegalArgumentException, ClassCastException
+    private String processClassRenaming(@NotNull final String previousClassName)
     {
-        final IFactory<Input, Output> factory = (IFactory<Input, Output>) getFactoryForInput((Class<? extends Input>) input.getClass());
+        if (!this.classRenamingHandlers.containsKey(previousClassName))
+        {
+            return previousClassName;
+        }
 
-        return factory.getNewInstance(input, context);
+        //See if we renamed something again.
+        return processClassRenaming(this.classRenamingHandlers.get(previousClassName));
+    }
+
+    @Override
+    public <OUTPUT> void writeToBuffer(@NotNull final ByteBuf buffer, @NotNull final OUTPUT object) throws IllegalArgumentException
+    {
+        final NBTTagCompound bufferCompound = serialize(object);
+        ByteBufUtils.writeTag(buffer, bufferCompound);
+    }
+
+    @Override
+    public <OUTPUT> OUTPUT readFromBuffer(@NotNull final ByteBuf buffer) throws IllegalArgumentException
+    {
+        final NBTTagCompound bufferCompound = ByteBufUtils.readTag(buffer);
+        return deserialize(bufferCompound);
+    }
+
+    @Override
+    public <INPUT, OUTPUT> OUTPUT getNewInstance(@NotNull final TypeToken<? extends OUTPUT> requestedType, @NotNull final INPUT input, @NotNull final Object... context)
+      throws IllegalArgumentException, ClassCastException
+    {
+        final TypeToken<? extends INPUT> inputToken = TypeToken.of((Class<? extends INPUT>) input.getClass());
+        final IFactory<INPUT, OUTPUT> factory = getFactoryForIO(inputToken, requestedType);
+
+        return factory.getNewInstance(this, input, context);
+    }
+
+    @Override
+    public <OUTPUT> OUTPUT getNewInstance(@NotNull final TypeToken<? extends OUTPUT> requestedType) throws IllegalArgumentException
+    {
+        //Creating a new instance with VoidInput.
+        return getNewInstance(requestedType, FactoryVoidInput.INSTANCE);
+    }
+
+    @Override
+    public <OUTPUT> void registerNewTypeOverrideHandler(@NotNull final ITypeOverrideHandler<OUTPUT> overrideHandler)
+    {
+        this.typeOverrideHandlers.add(overrideHandler);
+    }
+
+    @Override
+    public void registerNewClassRenaming(@NotNull final String previousName, @NotNull final String newName)
+    {
+        this.classRenamingHandlers.put(previousName, newName);
     }
 }

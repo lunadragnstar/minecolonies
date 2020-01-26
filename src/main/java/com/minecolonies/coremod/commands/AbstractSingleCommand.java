@@ -1,12 +1,16 @@
 package com.minecolonies.coremod.commands;
 
+import com.google.common.primitives.Ints;
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.IColonyManager;
 import com.minecolonies.api.colony.permissions.Rank;
 import com.minecolonies.api.configuration.Configurations;
-import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.ColonyManager;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.fml.common.FMLCommonHandler;
+
+import java.util.regex.Pattern;
+
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -51,6 +55,50 @@ public abstract class AbstractSingleCommand implements ISubCommand
             return def;
         }
     }
+    
+    /**
+     * Get the colony id from the ith argument (two integers separated by a pipe char)
+     * @param args the list of arguments
+     * @param i the index of the argument you want
+     * @param def the default value
+     * @return the colony id
+     */
+    public static int getColonyIdFromArg(final String[] args, final int i, final int def)
+    {
+    	if (args.length < i + 1)
+    	{
+    		return def;
+    	}
+    	else
+    	{
+    		String[] split = args[i].split(Pattern.quote("|"));
+    		if (split.length == 2)
+    		{
+    			Integer result1 = Ints.tryParse(split[1]);
+    			if (null != result1) return result1.intValue();
+    		}
+    		else if (split.length == 1)
+    		{
+    			Integer result = Ints.tryParse(split[0]);
+    			if (null != result) return result.intValue();
+    		}
+    	}
+    	return def;
+    }
+    
+    public static int getDimensionIdFromArg(final String[] args, final int i, final int def)
+    {
+    	if (args.length > i)
+    	{
+    		String[] split = args[i].split(Pattern.quote("|"));
+    		if (split.length == 2)
+    		{
+    			Integer result0 = Ints.tryParse(split[0]);
+    			if (null != result0) return result0.intValue();
+    		}
+    	}
+    	return def;
+    }
 
     @NotNull
     @Override
@@ -81,19 +129,19 @@ public abstract class AbstractSingleCommand implements ISubCommand
             return true;
         }
 
-        final Colony chkColony = ColonyManager.getColony(colonyId);
+        final IColony chkColony = IColonyManager.getInstance().getColonyByWorld(colonyId, FMLCommonHandler.instance().getMinecraftServerInstance().getWorld(0));
         if (chkColony == null)
         {
             return false;
         }
         return canCommandSenderUseCommand(theCommand)
-                && canRankUseCommand(chkColony, player);
+                 && canRankUseCommand(chkColony, player);
     }
 
     /**
      * Will check to see if play is Opped for the given command name.
      *
-     * @param sender  to check the player using the command.
+     * @param sender to check the player using the command.
      * @return boolean
      */
     @NotNull
@@ -102,7 +150,7 @@ public abstract class AbstractSingleCommand implements ISubCommand
         if (sender instanceof EntityPlayer)
         {
             return FMLCommonHandler.instance().getMinecraftServerInstance().getPlayerList()
-                    .canSendCommands(((EntityPlayer) sender).getGameProfile());
+                     .canSendCommands(((EntityPlayer) sender).getGameProfile());
         }
         return true;
     }
@@ -113,34 +161,36 @@ public abstract class AbstractSingleCommand implements ISubCommand
      * @param theCommand which command to check if the player can use it
      * @return boolean
      */
-    public boolean canCommandSenderUseCommand(final Commands theCommand)
+    public static boolean canCommandSenderUseCommand(final Commands theCommand)
     {
         switch (theCommand)
         {
             case HOMETP:
-                return Configurations.canPlayerUseHomeTPCommand;
+                return Configurations.gameplay.canPlayerUseHomeTPCommand;
             case COLONYTP:
-                return Configurations.canPlayerUseColonyTPCommand;
+                return Configurations.gameplay.canPlayerUseColonyTPCommand;
             case RTP:
-                return Configurations.canPlayerUseRTPCommand;
+                return Configurations.gameplay.canPlayerUseRTPCommand;
             case KILLCITIZENS:
-                return Configurations.canPlayerUseKillCitizensCommand;
+                return Configurations.gameplay.canPlayerUseKillCitizensCommand;
             case CITIZENINFO:
-                return Configurations.canPlayerUseCitizenInfoCommand;
+                return Configurations.gameplay.canPlayerUseCitizenInfoCommand;
             case LISTCITIZENS:
-                return Configurations.canPlayerUseListCitizensCommand;
+                return Configurations.gameplay.canPlayerUseListCitizensCommand;
             case RESPAWNCITIZENS:
-                return Configurations.canPlayerRespawnCitizensCommand;
+                return Configurations.gameplay.canPlayerRespawnCitizensCommand;
             case SHOWCOLONYINFO:
-                return Configurations.canPlayerUseShowColonyInfoCommand;
+                return Configurations.gameplay.canPlayerUseShowColonyInfoCommand;
             case ADDOFFICER:
-                return Configurations.canPlayerUseAddOfficerCommand;
+                return Configurations.gameplay.canPlayerUseAddOfficerCommand;
             case DELETECOLONY:
-                return Configurations.canPlayerUseDeleteColonyCommand;
+                return Configurations.gameplay.canPlayerUseDeleteColonyCommand;
             case REFRESH_COLONY:
-                return Configurations.canPlayerUseRefreshColonyCommand;
+                return Configurations.gameplay.canPlayerUseRefreshColonyCommand;
             case MC_BACKUP:
-                return Configurations.canPlayerUseBackupCommand;
+                return Configurations.gameplay.canPlayerUseBackupCommand;
+            case RSRESET:
+                return Configurations.requestSystem.canPlayerUseResetCommand;
             default:
                 return false;
         }
@@ -154,7 +204,7 @@ public abstract class AbstractSingleCommand implements ISubCommand
      * @param player the player.
      * @return true if so.
      */
-    public boolean canRankUseCommand(@NotNull final Colony colony, @NotNull final EntityPlayer player)
+    public boolean canRankUseCommand(@NotNull final IColony colony, @NotNull final EntityPlayer player)
     {
         return colony.getPermissions().getRank(player).equals(Rank.OFFICER) || colony.getPermissions().getRank(player).equals(Rank.OWNER);
     }
@@ -165,6 +215,7 @@ public abstract class AbstractSingleCommand implements ISubCommand
         COLONYTP,
         RTP,
         DELETECOLONY,
+        SPAWNCITZENS,
         KILLCITIZENS,
         LISTCITIZENS,
         RESPAWNCITIZENS,
@@ -173,6 +224,7 @@ public abstract class AbstractSingleCommand implements ISubCommand
         CHANGE_COLONY_OWNER,
         REFRESH_COLONY,
         HOMETP,
-        MC_BACKUP
+        MC_BACKUP,
+        RSRESET
     }
 }

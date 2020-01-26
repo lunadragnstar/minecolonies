@@ -1,6 +1,7 @@
 package com.minecolonies.coremod.colony;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.minecolonies.api.colony.IColony;
 import com.minecolonies.api.util.Log;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -15,8 +16,6 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static com.minecolonies.api.util.constant.Suppression.UNCHECKED;
-
-//TODO extend list/collection
 
 /**
  * Data structure for storing colonies, optimized for performance.
@@ -52,10 +51,8 @@ public final class ColonyList<T extends IColony> implements Iterable<T>
 
         if (list[colonyID] != null)
         {
-            throw new IllegalArgumentException(
-                                                      String.format("Already a colony registered to id=%d, colony=%s, not creating new colony",
-                                                              colonyID,
-                                                              list[colonyID].getName()));
+            Log.getLogger().error(String.format("Already a colony registered to id=%d, colony=%s, not creating new colony", colonyID, list[colonyID].getName()));
+            return (Colony) list[colonyID];
         }
 
         final Colony colony = new Colony(colonyID, world, position);
@@ -91,11 +88,11 @@ public final class ColonyList<T extends IColony> implements Iterable<T>
         final T existingColony = get(colony.getID());
         if (existingColony != null && existingColony != colony)
         {
-            throw new IllegalArgumentException(
-                                                      String.format("Already a colony registered to id=%d, colony=%s, not changing to colony=%s",
-                                                              colony.getID(),
-                                                              existingColony.getName(),
-                                                              colony.getName()));
+            Log.getLogger().error(String.format("Already a colony registered to id=%d, colony=%s, not changing to colony=%s",
+                                                  colony.getID(),
+                                                  existingColony.getName(),
+                                                  colony.getName()));
+            return;
         }
 
         while (colony.getID() >= list.length)
@@ -182,11 +179,20 @@ public final class ColonyList<T extends IColony> implements Iterable<T>
     }
 
     /**
+     * Get the top colony id.
+     * @return the top id.
+     */
+    public int getTopID()
+    {
+        return topID;
+    }
+
+    /**
      * Return the number of Colonies in the list.
      *
      * @return number of Colonies in the list.
      */
-    public int size()
+    public int getSize()
     {
         return size;
     }

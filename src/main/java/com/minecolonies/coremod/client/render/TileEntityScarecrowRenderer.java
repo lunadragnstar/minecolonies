@@ -1,9 +1,11 @@
 package com.minecolonies.coremod.client.render;
 
+import com.minecolonies.api.blocks.huts.AbstractBlockMinecoloniesDefault;
+import com.minecolonies.api.tileentities.ScareCrowType;
 import com.minecolonies.api.util.constant.Constants;
-import com.minecolonies.coremod.blocks.BlockHutField;
+import com.minecolonies.coremod.blocks.BlockScarecrow;
 import com.minecolonies.coremod.client.model.ModelScarecrowBoth;
-import com.minecolonies.coremod.tileentities.ScarecrowTileEntity;
+import com.minecolonies.coremod.tileentities.TileEntityScarecrow;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
 import net.minecraft.util.EnumFacing;
@@ -16,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
  * Class to render the scarecrow.
  */
 @SideOnly(Side.CLIENT)
-public class TileEntityScarecrowRenderer extends TileEntitySpecialRenderer<ScarecrowTileEntity>
+public class TileEntityScarecrowRenderer extends TileEntitySpecialRenderer<TileEntityScarecrow>
 {
     /**
      * Offset to the block middle.
@@ -78,21 +80,21 @@ public class TileEntityScarecrowRenderer extends TileEntitySpecialRenderer<Scare
     }
 
     @Override
-    public void renderTileEntityAt(@NotNull final ScarecrowTileEntity te, final double posX, final double posY, final double posZ, final float partialTicks, final int destroyStage)
+    public void render(final TileEntityScarecrow te, final double x, final double y, final double z, final float partialTicks, final int destroyStage, final float alpha)
     {
         //Store the transformation
         GlStateManager.pushMatrix();
         //Set viewport to tile entity position to render it
-        GlStateManager.translate(posX + BLOCK_MIDDLE, posY + YOFFSET, posZ + BLOCK_MIDDLE);
+        GlStateManager.translate(x + BLOCK_MIDDLE, y + YOFFSET, z + BLOCK_MIDDLE);
 
         this.bindTexture(getResourceLocation(te));
 
         GlStateManager.rotate(ROTATION, XROTATIONOFFSET, YROTATIONOFFSET, ZROTATIONOFFSET);
 
         //In the case of worldLags tileEntities may sometimes disappear.
-        if (getWorld().getBlockState(te.getPos()).getBlock() instanceof BlockHutField)
+        if (getWorld().getBlockState(te.getPos()).getBlock() instanceof BlockScarecrow)
         {
-            final EnumFacing facing = getWorld().getBlockState(te.getPos()).getValue(BlockHutField.FACING);
+            final EnumFacing facing = getWorld().getBlockState(te.getPos()).getValue(AbstractBlockMinecoloniesDefault.FACING);
             switch (facing)
             {
                 case EAST:
@@ -123,11 +125,11 @@ public class TileEntityScarecrowRenderer extends TileEntitySpecialRenderer<Scare
      * @return the location.
      */
     @NotNull
-    private static ResourceLocation getResourceLocation(@NotNull final ScarecrowTileEntity tileEntity)
+    private static ResourceLocation getResourceLocation(@NotNull final TileEntityScarecrow tileEntity)
     {
         final String loc;
 
-        if (tileEntity.getType() == ScarecrowTileEntity.ScareCrowType.PUMPKINHEAD)
+        if (tileEntity.getType() == ScareCrowType.PUMPKINHEAD)
         {
             loc = "textures/blocks/blockscarecrowpumpkin.png";
         }

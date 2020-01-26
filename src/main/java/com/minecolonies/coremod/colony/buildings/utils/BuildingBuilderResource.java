@@ -1,6 +1,6 @@
 package com.minecolonies.coremod.colony.buildings.utils;
 
-import com.minecolonies.coremod.entity.ai.item.handling.ItemStorage;
+import com.minecolonies.api.crafting.ItemStorage;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -19,29 +19,27 @@ public class BuildingBuilderResource extends ItemStorage
     private int amountAvailable;
     private int amountPlayer;
     /**
-     * Constructor for a resource.
+     * Constructor for a resource but with available items.
      *
-     * @param item        the item.
-     * @param damageValue it's damage value.
-     * @param amount      amount for this resource.
-     * @param available   optional amount available for this resource
+     * @param stack     the stack.
+     * @param amount    the amount.
+     * @param available the amount available.
      */
-    public BuildingBuilderResource(@NotNull final Item item, final int damageValue, final int amount, final int available)
+    public BuildingBuilderResource(@NotNull final ItemStack stack, final int amount, final int available)
     {
-        this(item, damageValue, amount);
+        this(stack, amount);
         this.amountAvailable = available;
     }
 
     /**
      * Constructor for a resource.
      *
-     * @param item        the item.
-     * @param damageValue it's damage value.
-     * @param amount      amount for this resource.
+     * @param stack  the stack.
+     * @param amount amount for this resource.
      */
-    public BuildingBuilderResource(@NotNull final Item item, final int damageValue, final int amount)
+    public BuildingBuilderResource(@NotNull final ItemStack stack, final int amount)
     {
-        super(item, damageValue, amount, false);
+        super(stack, amount, false);
         this.amountAvailable = 0;
         this.amountPlayer = 0;
     }
@@ -74,14 +72,20 @@ public class BuildingBuilderResource extends ItemStorage
     public String toString()
     {
         final int itemId = Item.getIdFromItem(getItem());
-        return getName() + "(p:" + amountPlayer + " a:" + amountAvailable + " n:" + getAmount() + " id=" + itemId + " damage=" + getDamageValue() + ") => "
-                 + getAvailabilityStatus().name();
+        final int hashCode = getItemStack().hasTagCompound() ? getItemStack().getTagCompound().hashCode() : 0;
+        return getName() + "(p:"
+                + amountPlayer + " a:"
+                + amountAvailable + " n:" + getAmount()
+                + " id=" + itemId
+                + " damage=" + getDamageValue() +  "-"
+                + hashCode
+                + ") => " + getAvailabilityStatus().name();
     }
 
     public String getName()
     {
         //It is the bet way ?
-        return new ItemStack(getItem(), 1, getDamageValue()).getDisplayName();
+        return getItemStack().getDisplayName();
     }
 
     public RessourceAvailability getAvailabilityStatus()

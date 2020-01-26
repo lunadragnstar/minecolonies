@@ -1,6 +1,9 @@
 package com.minecolonies.coremod.colony;
 
+import com.minecolonies.coremod.colony.requestsystem.init.StandardFactoryControllerInitializer;
 import com.minecolonies.coremod.test.ReflectionUtil;
+import net.minecraft.scoreboard.ScorePlayerTeam;
+import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldProvider;
@@ -16,6 +19,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import static org.junit.Assert.*;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -26,6 +30,9 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class ColonyListTest
 {
+    @Mock
+    private BlockPos center;
+
     @Mock
     private Colony colony1;
 
@@ -42,22 +49,34 @@ public class ColonyListTest
     private World world;
 
     @Mock
+    private Scoreboard board;
+
+    @Mock
     private EventBus eventBus;
 
     private ColonyList<Colony> list;
 
     @Before
-    public void setup() throws NoSuchFieldException, IllegalAccessException
+    public void setUp() throws NoSuchFieldException, IllegalAccessException
     {
         list = new ColonyList<>();
 
         when(colony1.getID()).thenReturn(1);
         when(colony1Copy.getID()).thenReturn(1);
         when(colony2.getID()).thenReturn(2);
+        when(colony1.getCenter()).thenReturn(center);
+        when(colony1Copy.getCenter()).thenReturn(center);
+        when(colony2.getCenter()).thenReturn(center);
+        when(colony1.getWorld()).thenReturn(world);
+        when(colony1Copy.getWorld()).thenReturn(world);
+        when(colony2.getWorld()).thenReturn(world);
+        when(world.getScoreboard()).thenReturn(board);
+        when(board.getTeam(any())).thenReturn(new ScorePlayerTeam(board, "team"));
 
         when(worldProvider.getDimension()).thenReturn(1);
         ReflectionUtil.setFinalField(world, "provider", worldProvider);
         ReflectionUtil.setStaticFinalField(MinecraftForge.class, "EVENT_BUS", eventBus);
+        StandardFactoryControllerInitializer.onPreInit();
     }
 
     @Test
@@ -97,7 +116,7 @@ public class ColonyListTest
             assertEquals(colony, list.get(colony.getID()));
         }
 
-        assertEquals(ColonyList.INITIAL_SIZE + 1, list.size());
+        assertEquals(ColonyList.INITIAL_SIZE + 1, list.getSize());
     }
 
     @Test
@@ -106,7 +125,7 @@ public class ColonyListTest
         list.add(colony1);
 
         assertEquals(colony1, list.get(1));
-        assertEquals(1, list.size());
+        assertEquals(1, list.getSize());
     }
 
     @Test
@@ -128,7 +147,7 @@ public class ColonyListTest
         assertEquals(colony1, list.get(1));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testAddConflict()
     {
         list.add(colony1);
@@ -143,7 +162,7 @@ public class ColonyListTest
         when(colony.getID()).thenReturn(id);
         list.add(colony);
 
-        assertEquals(1, list.size());
+        assertEquals(1, list.getSize());
         assertEquals(colony, list.get(id));
     }
 
@@ -175,7 +194,7 @@ public class ColonyListTest
 
         list.add(colony1);
 
-        assertEquals(1, list.size());
+        assertEquals(1, list.getSize());
         assertEquals(colony1, list.get(1));
     }
 
@@ -204,11 +223,11 @@ public class ColonyListTest
     @Test
     public void testSize()
     {
-        assertEquals(0, list.size());
+        assertEquals(0, list.getSize());
         list.add(colony1);
         list.add(colony2);
 
-        assertEquals(2, list.size());
+        assertEquals(2, list.getSize());
     }
 
     @Test
@@ -227,7 +246,7 @@ public class ColonyListTest
 
         final List<Colony> copy = list.getCopyAsList();
 
-        assertEquals(list.size(), copy.size());
+        assertEquals(list.getSize(), copy.size());
         assertEquals(1, copy.get(0).getID());
         assertEquals(2, copy.get(1).getID());
     }
@@ -248,6 +267,6 @@ public class ColonyListTest
             itr.next();
         }
 
-        assertEquals(list.size(), count);
+        assertEquals(list.getSize(), count);
     }
 }

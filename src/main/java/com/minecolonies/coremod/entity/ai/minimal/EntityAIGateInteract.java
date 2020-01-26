@@ -14,6 +14,8 @@ import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static com.minecolonies.api.util.constant.Constants.HALF_BLOCK;
+
 /**
  * Used for gate interaction for the citizens.
  */
@@ -27,10 +29,7 @@ public class EntityAIGateInteract extends EntityAIBase
      * Number of blocks to check for the fence gate - length.
      */
     private static final int    LENGTH_TO_CHECK = 2;
-    /**
-     * The length of half a block.
-     */
-    private static final double HALF_BLOCK      = 0.5D;
+
     /**
      * The min distance the gate has to be from the citizen.
      */
@@ -85,7 +84,7 @@ public class EntityAIGateInteract extends EntityAIBase
     @Override
     public boolean shouldExecute()
     {
-        return this.theEntity.isCollidedHorizontally && checkPath();
+        return this.theEntity.collidedHorizontally && checkPath();
     }
 
     /**
@@ -114,7 +113,7 @@ public class EntityAIGateInteract extends EntityAIBase
             final PathPoint pathpoint = path.getPathPointFromIndex(i);
             for (int level = 0; level < HEIGHT_TO_CHECK; level++)
             {
-                this.gatePosition = new BlockPos(pathpoint.xCoord, pathpoint.yCoord + level, pathpoint.zCoord);
+                this.gatePosition = new BlockPos(pathpoint.x, pathpoint.y + level, pathpoint.z);
                 if (this.theEntity.getDistanceSq((double) this.gatePosition.getX(), this.theEntity.posY, (double) this.gatePosition.getZ()) <= MIN_DISTANCE)
                 {
                     this.gateBlock = this.getBlockFence(this.gatePosition);
@@ -139,11 +138,11 @@ public class EntityAIGateInteract extends EntityAIBase
      */
     private BlockFenceGate getBlockFence(@NotNull final BlockPos pos)
     {
-        final IBlockState blockState = CompatibilityUtils.getWorld(this.theEntity).getBlockState(pos);
+        final IBlockState blockState = CompatibilityUtils.getWorldFromEntity(this.theEntity).getBlockState(pos);
         Block block = blockState.getBlock();
         if (!(block instanceof BlockFenceGate && blockState.getMaterial() == Material.WOOD))
         {
-            block = CompatibilityUtils.getWorld(this.theEntity).getBlockState(this.theEntity.getPosition()).getBlock();
+            block = CompatibilityUtils.getWorldFromEntity(this.theEntity).getBlockState(this.theEntity.getPosition()).getBlock();
             gatePosition = this.theEntity.getPosition();
         }
         return block instanceof BlockFenceGate && blockState.getMaterial() == Material.WOOD ? (BlockFenceGate) block : null;
@@ -155,7 +154,7 @@ public class EntityAIGateInteract extends EntityAIBase
      * @return true or false.
      */
     @Override
-    public boolean continueExecuting()
+    public boolean shouldContinueExecuting()
     {
         return !this.hasStoppedFenceInteraction;
     }

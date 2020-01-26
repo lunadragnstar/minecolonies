@@ -1,19 +1,34 @@
 package com.minecolonies.coremod.event;
 
-import com.minecolonies.coremod.colony.Structures;
+import com.ldtteam.structures.blueprints.v1.Blueprint;
+import com.ldtteam.structures.client.BlueprintRenderHandler;
+import com.ldtteam.structures.helpers.Settings;
+import com.ldtteam.structures.helpers.Structure;
+import com.ldtteam.structurize.util.PlacementSettings;
+import com.minecolonies.api.colony.IColonyManager;
+import com.minecolonies.api.colony.IColonyView;
+import com.minecolonies.api.colony.buildings.views.IBuildingView;
+import com.minecolonies.api.items.ModItems;
+import com.minecolonies.api.util.BlockPosUtil;
+import com.minecolonies.coremod.colony.CitizenDataView;
+import com.minecolonies.coremod.colony.buildings.AbstractBuildingGuards;
 import com.minecolonies.coremod.entity.ai.basic.AbstractEntityAIStructure;
 import com.minecolonies.coremod.entity.pathfinding.Pathfinding;
-import com.minecolonies.coremod.util.RenderUtils;
-import com.minecolonies.structures.helpers.Settings;
-import com.minecolonies.structures.helpers.Structure;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.WorldClient;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
-import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.minecolonies.api.util.constant.NbtTagConstants.TAG_ID;
+import static com.minecolonies.api.util.constant.NbtTagConstants.TAG_POS;
 
 /**
  * Used to handle client events.
@@ -21,9 +36,34 @@ import java.util.List;
 public class ClientEventHandler
 {
     /**
-     * List of all BlockPos in the colony border.
+     * Seconds to show the citizen info sign.
      */
-    private static final List<BlockPos> colonyBorder = new ArrayList<>();
+    private static final int SECONDS_TO_SHOW = 5;
+
+    /**
+     * The currently displayed citizen.
+     */
+    private final CitizenDataView citizen = null;
+
+    /**
+     * The ticks passed since showing the sign.
+     */
+    private double ticksPassed = 0;
+
+    /**
+     * Cached wayPointBlueprint.
+     */
+    private Blueprint wayPointTemplate;
+
+    /**
+     * Cached wayPointBlueprint.
+     */
+    private Blueprint partolPointTemplate;
+
+    /**
+     * The colony view required here.
+     */
+    private final IColonyView view = null;
 
     /**
      * Used to catch the renderWorldLastEvent in order to draw the debug nodes for pathfinding.
@@ -36,23 +76,55 @@ public class ClientEventHandler
         Pathfinding.debugDraw(event.getPartialTicks());
 
         final Structure structure = Settings.instance.getActiveStructure();
+        final WorldClient world = Minecraft.getMinecraft().world;
+        final EntityPlayer player = Minecraft.getMinecraft().player;
         if (structure != null)
         {
-            final BlockPos position = Settings.instance.getPosition();
-            if (Settings.instance.getStructureName().contains(AbstractEntityAIStructure.WAYPOINT_STRING))
+            final PlacementSettings settings = new PlacementSettings(Settings.instance.getMirror(), BlockPosUtil.getRotationFromRotations(Settings.instance.getRotation()));
+            if (Settings.instance.getStructureName() != null && Settings.instance.getStructureName().contains(AbstractEntityAIStructure.WAYPOINT_STRING))
             {
-                RenderUtils.renderWayPoints(position, Minecraft.getMinecraft().world, event.getPartialTicks());
-            }
-            else
-            {
-                final Structures.StructureName name = new Structures.StructureName(Settings.instance.getStructureName());
-                if (name.isHut())
+                final IColonyView tempView = IColonyManager.getInstance().getClosestColonyView(world, player.getPosition());
+                if (tempView != null)
                 {
-                    RenderUtils.renderColonyBorder(position, Minecraft.getMinecraft().world, event.getPartialTicks(), Minecraft.getMinecraft().player, colonyBorder);
+                    if (wayPointTemplate == null)
+                    {
+                        wayPointTemplate = new Structure(world, "schematics/infrastructure/Waypoint", settings).getBluePrint();
+                    }
+                    BlueprintRenderHandler.getInstance().drawBlueprintAtListOfPositions(new ArrayList<>(tempView.getWayPoints().keySet()), event.getPartialTicks(), wayPointTemplate);
                 }
             }
-            return;
         }
-        colonyBorder.clear();
+        else if (player.getHeldItemMainhand().getItem() == ModItems.scepterGuard)
+        {
+            final PlacementSettings settings = new PlacementSettings(Settings.instance.getMirror(), BlockPosUtil.getRotationFromRotations(Settings.instance.getRotation()));
+            final ItemStack stack = player.getHeldItemMainhand();
+            if (!stack.hasTagCompound())
+            {
+                return;
+            }
+            final NBTTagCompound compound = stack.getTagCompound();
+
+            final IColonyView colony = IColonyManager.getInstance().getColonyView(compound.getInteger(TAG_ID), player.world.provider.getDimension());
+            if (colony == null)
+            {
+                return;
+            }
+
+            final BlockPos guardTower = BlockPosUtil.readFromNBT(compound, TAG_POS);
+            final IBuildingView hut = colony.getBuilding(guardTower);
+
+            if (partolPointTemplate == null)
+            {
+                partolPointTemplate = new Structure(world, "schematics/infrastructure/PatrolPoint", settings).getBluePrint();
+            }
+
+            if (hut instanceof AbstractBuildingGuards.View)
+            {
+                BlueprintRenderHandler.getInstance()
+                  .drawBlueprintAtListOfPositions(((AbstractBuildingGuards.View) hut).getPatrolTargets().stream().map(BlockPos::up).collect(Collectors.toList()),
+                    event.getPartialTicks(),
+                    partolPointTemplate);
+            }
+        }
     }
 }

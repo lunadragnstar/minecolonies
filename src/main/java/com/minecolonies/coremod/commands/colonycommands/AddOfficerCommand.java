@@ -1,12 +1,14 @@
 package com.minecolonies.coremod.commands.colonycommands;
 
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.IColonyManager;
 import com.minecolonies.api.colony.permissions.Rank;
-import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.IColony;
 import com.minecolonies.coremod.commands.AbstractSingleCommand;
+import com.minecolonies.coremod.commands.ActionMenuState;
+import com.minecolonies.coremod.commands.IActionCommand;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
@@ -17,18 +19,23 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 
+import static com.minecolonies.api.util.constant.CommandConstants.*;
 import static com.minecolonies.coremod.commands.AbstractSingleCommand.Commands.ADDOFFICER;
 
 /**
  * List all colonies.
  */
-public class AddOfficerCommand extends AbstractSingleCommand
+public class AddOfficerCommand extends AbstractSingleCommand implements IActionCommand
 {
+    public static final String DESC = "addOfficer";
 
-    public static final  String       DESC            = "addOfficer";
-    private static final String       SUCCESS_MESSAGE = "Succesfully added Player %s to colony %d";
-    private static final String       COLONY_NULL     = "Couldn't find colony %d.";
-    private static final String       NO_ARGUMENTS    = "Please define a colony or player";
+    /**
+     * no-args constructor called by new CommandEntryPoint executer.
+     */
+    public AddOfficerCommand()
+    {
+        super();
+    }
 
     /**
      * Initialize this SubCommand with it's parents.
@@ -48,42 +55,44 @@ public class AddOfficerCommand extends AbstractSingleCommand
     }
 
     @Override
+    public void execute(@NotNull final MinecraftServer server, @NotNull final ICommandSender sender, @NotNull final ActionMenuState actionMenuState) throws CommandException
+    {
+        final IColony colony = actionMenuState.getColonyForArgument("colony");
+        final EntityPlayer player = actionMenuState.getPlayerForArgument("player");
+
+        executeShared(server, sender, colony, player.getName());
+    }
+
+    @Override
     public void execute(@NotNull final MinecraftServer server, @NotNull final ICommandSender sender, @NotNull final String... args) throws CommandException
     {
-        if(args.length == 0)
+        if (args.length == 0)
         {
-            sender.getCommandSenderEntity().sendMessage(new TextComponentString(NO_ARGUMENTS));
+            sender.sendMessage(new TextComponentString(NO_COLONY_OR_PLAYER));
             return;
         }
 
+        final Entity senderEntity = sender.getCommandSenderEntity();
+
         int colonyId = getIthArgument(args, 0, -1);
-        if(colonyId == -1 && sender instanceof EntityPlayer)
+        int dimensionId = getDimensionIdFromArg(args, 0, sender.getEntityWorld().provider.getDimension());
+        if (colonyId == -1 && senderEntity instanceof EntityPlayer)
         {
-            final IColony colony = ColonyManager.getIColonyByOwner(sender.getEntityWorld(), ((EntityPlayer) sender).getUniqueID());
-            if(colony == null)
+            final IColony colony = IColonyManager.getInstance().getIColonyByOwner(server.getWorld(dimensionId), ((EntityPlayer) sender).getUniqueID());
+            if (colony == null)
             {
-                sender.getCommandSenderEntity().sendMessage(new TextComponentString(COLONY_NULL));
+                sender.sendMessage(new TextComponentString(COLONY_X_NULL));
                 return;
             }
             colonyId = colony.getID();
         }
 
-        final Colony colony = ColonyManager.getColony(colonyId);
+        final IColony colony = IColonyManager.getInstance().getColonyByWorld(colonyId, server.getWorld(dimensionId));
 
         if (colony == null)
         {
-            sender.sendMessage(new TextComponentString(String.format(COLONY_NULL, colonyId)));
+            sender.sendMessage(new TextComponentString(String.format(COLONY_X_NULL, colonyId)));
             return;
-        }
-
-        if(sender instanceof EntityPlayer)
-        {
-            EntityPlayer player = (EntityPlayer) sender;
-            if (!canPlayerUseCommand(player, ADDOFFICER, colonyId))
-            {
-                sender.getCommandSenderEntity().sendMessage(new TextComponentString(NOT_PERMITTED));
-                return;
-            }
         }
 
         String playerName = null;
@@ -92,22 +101,39 @@ public class AddOfficerCommand extends AbstractSingleCommand
             playerName = args[1];
         }
 
-        if(playerName == null || playerName.isEmpty())
+        if (playerName == null || playerName.isEmpty())
         {
             playerName = sender.getName();
         }
 
+        executeShared(server, sender, colony, playerName);
+    }
+
+    private void executeShared(@NotNull final MinecraftServer server, @NotNull final ICommandSender sender, @NotNull final IColony colony, final String playerName)
+            throws CommandException
+    {
+        final Entity senderEntity = sender.getCommandSenderEntity();
+        if (senderEntity instanceof EntityPlayer)
+        {
+            final EntityPlayer senderPlayer = (EntityPlayer) sender;
+            if (!canPlayerUseCommand(senderPlayer, ADDOFFICER, colony.getID()))
+            {
+                sender.sendMessage(new TextComponentString(NOT_PERMITTED));
+                return;
+            }
+        }
+
         colony.getPermissions().addPlayer(playerName, Rank.OFFICER, colony.getWorld());
-        sender.sendMessage(new TextComponentString(String.format(SUCCESS_MESSAGE, playerName, colonyId)));
+        sender.sendMessage(new TextComponentString(String.format(SUCCESS_MESSAGE_ADD_OFFICER, playerName, colony.getID())));
     }
 
     @NotNull
     @Override
     public List<String> getTabCompletionOptions(
-                                                 @NotNull final MinecraftServer server,
-                                                 @NotNull final ICommandSender sender,
-                                                 @NotNull final String[] args,
-                                                 @Nullable final BlockPos pos)
+            @NotNull final MinecraftServer server,
+            @NotNull final ICommandSender sender,
+            @NotNull final String[] args,
+            @Nullable final BlockPos pos)
     {
         return Collections.emptyList();
     }

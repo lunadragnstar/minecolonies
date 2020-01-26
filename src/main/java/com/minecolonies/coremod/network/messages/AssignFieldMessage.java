@@ -1,10 +1,10 @@
 package com.minecolonies.coremod.network.messages;
 
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.IColonyManager;
 import com.minecolonies.api.colony.permissions.Action;
 import com.minecolonies.api.util.BlockPosUtil;
-import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.buildings.BuildingFarmer;
+import com.minecolonies.coremod.colony.buildings.workerbuildings.BuildingFarmer;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
@@ -22,6 +22,11 @@ public class AssignFieldMessage extends AbstractMessage<AssignFieldMessage, IMes
     private BlockPos buildingId;
     private boolean  assign;
     private BlockPos field;
+
+    /**
+     * The dimension of the message.
+     */
+    private int dimension;
 
     /**
      * Empty standard constructor.
@@ -45,6 +50,7 @@ public class AssignFieldMessage extends AbstractMessage<AssignFieldMessage, IMes
         this.buildingId = building.getID();
         this.assign = assign;
         this.field = field;
+        this.dimension = building.getColony().getDimension();
     }
 
     @Override
@@ -54,6 +60,7 @@ public class AssignFieldMessage extends AbstractMessage<AssignFieldMessage, IMes
         buildingId = BlockPosUtil.readFromByteBuf(buf);
         assign = buf.readBoolean();
         field = BlockPosUtil.readFromByteBuf(buf);
+        dimension = buf.readInt();
     }
 
     @Override
@@ -63,12 +70,13 @@ public class AssignFieldMessage extends AbstractMessage<AssignFieldMessage, IMes
         BlockPosUtil.writeToByteBuf(buf, buildingId);
         buf.writeBoolean(assign);
         BlockPosUtil.writeToByteBuf(buf, field);
+        buf.writeInt(dimension);
     }
 
     @Override
     public void messageOnServerThread(final AssignFieldMessage message, final EntityPlayerMP player)
     {
-        final Colony colony = ColonyManager.getColony(message.colonyId);
+        final IColony colony = IColonyManager.getInstance().getColonyByDimension(message.colonyId, message.dimension);
         if (colony != null)
         {
             //Verify player has permission to change this huts settings
@@ -77,7 +85,7 @@ public class AssignFieldMessage extends AbstractMessage<AssignFieldMessage, IMes
                 return;
             }
 
-            @Nullable final BuildingFarmer building = colony.getBuilding(message.buildingId, BuildingFarmer.class);
+            @Nullable final BuildingFarmer building = colony.getBuildingManager().getBuilding(message.buildingId, BuildingFarmer.class);
             if (building != null)
             {
                 if (message.assign)

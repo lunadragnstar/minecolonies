@@ -1,26 +1,32 @@
 package com.minecolonies.coremod.colony.jobs;
 
-import com.minecolonies.api.util.Log;
-import com.minecolonies.api.util.ItemStackUtils;
-import com.minecolonies.coremod.client.render.RenderBipedCitizen;
-import com.minecolonies.coremod.colony.CitizenData;
+import com.minecolonies.api.client.render.modeltype.BipedModelType;
+import com.minecolonies.api.client.render.modeltype.IModelType;
+import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.jobs.IJob;
+import com.minecolonies.api.colony.requestsystem.StandardFactoryController;
+import com.minecolonies.api.colony.requestsystem.token.IToken;
+import com.minecolonies.api.entity.ai.statemachine.states.AIWorkerState;
+import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
+import com.minecolonies.api.util.NBTUtils;
+import com.minecolonies.blockout.Log;
 import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.entity.EntityCitizen;
 import com.minecolonies.coremod.entity.ai.basic.AbstractAISkeleton;
 import net.minecraft.entity.ai.EntityAITasks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.SoundEvent;
 import net.minecraftforge.common.util.Constants;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.*;
+import java.lang.ref.WeakReference;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import static com.minecolonies.api.util.constant.NbtTagConstants.TAG_JOB_TYPE;
 import static com.minecolonies.api.util.constant.Suppression.CLASSES_SHOULD_NOT_ACCESS_STATIC_MEMBERS_OF_THEIR_OWN_SUBCLASSES_DURING_INITIALIZATION;
 
 /**
@@ -32,185 +38,116 @@ import static com.minecolonies.api.util.constant.Suppression.CLASSES_SHOULD_NOT_
  * We are only mapping classes and that is reasonable
  */
 @SuppressWarnings(CLASSES_SHOULD_NOT_ACCESS_STATIC_MEMBERS_OF_THEIR_OWN_SUBCLASSES_DURING_INITIALIZATION)
-public abstract class AbstractJob
+public abstract class AbstractJob<AI extends AbstractAISkeleton<J>, J extends AbstractJob<AI, J>> implements IJob<AI>
 {
-    private static final String TAG_TYPE = "type";
-    private static final String TAG_ITEMS_NEEDED = "itemsNeeded";
+    private static final String TAG_ASYNC_REQUESTS = "asyncRequests";
+    private static final String TAG_ACTIONS_DONE   = "actionsDone";
 
-    private static final String MAPPING_PLACEHOLDER = "Placeholder";
-    private static final String MAPPING_BUILDER     = "Builder";
-    private static final String MAPPING_DELIVERY    = "Deliveryman";
-    private static final String MAPPING_MINER       = "Miner";
-    private static final String MAPPING_LUMBERJACK  = "Lumberjack";
-    private static final String MAPPING_FARMER      = "Farmer";
-    private static final String MAPPING_FISHERMAN   = "Fisherman";
-    private static final String MAPPING_TOWER_GUARD = "GuardTower";
-    private static final String MAPPING_BAKER       = "Baker";
+    /**
+     * A counter to dump the inventory after x actions.
+     */
+    private int actionsDone = 0;
 
     /**
      * The priority assigned with every main AI job.
      */
     private static final int TASK_PRIORITY = 3;
 
-    //  Job and View Class Mapping.
-    @NotNull
-    private static final Map<String, Class<? extends AbstractJob>> nameToClassMap = new HashMap<>();
-    @NotNull
-    private static final Map<Class<? extends AbstractJob>, String> classToNameMap = new HashMap<>();
-    //fix for the annotation
-    static
-    {
-        addMapping(MAPPING_PLACEHOLDER, JobPlaceholder.class);
-        addMapping(MAPPING_BUILDER, JobBuilder.class);
-        addMapping(MAPPING_DELIVERY, JobDeliveryman.class);
-        addMapping(MAPPING_MINER, JobMiner.class);
-        addMapping(MAPPING_LUMBERJACK, JobLumberjack.class);
-        addMapping(MAPPING_FARMER, JobFarmer.class);
-        addMapping(MAPPING_FISHERMAN, JobFisherman.class);
-        addMapping(MAPPING_TOWER_GUARD, JobGuard.class);
-        addMapping(MAPPING_BAKER, JobBaker.class);
-    }
+    /**
+     * Citizen connected with the job.
+     */
+    private final ICitizenData citizen;
 
-    private final CitizenData citizen;
-    @NotNull
-    private final List<ItemStack> itemsNeeded = new ArrayList<>();
-    private       String          nameTag     = "";
+    /**
+     * The name tag of the job.
+     */
+    private String nameTag = "";
+
+    /**
+     * A set of tokens that point to requests for which we do not wait.
+     */
+    private final Set<IToken> asyncRequests = new HashSet<>();
+
+    /**
+     * Check if the worker has searched for food today.
+     */
+    private boolean searchedForFoodToday;
+
+    /**
+     * The workerAI for this Job
+     */
+    private WeakReference<AI> workerAI = new WeakReference<>(null);
 
     /**
      * Initialize citizen data.
      *
      * @param entity the citizen data.
      */
-    public AbstractJob(final CitizenData entity)
+    public AbstractJob(final ICitizenData entity)
     {
         citizen = entity;
     }
 
     /**
-     * Add a given Job mapping.
+     * Getter for the job which will be associated with the experience.
      *
-     * @param name     name of job class.
-     * @param jobClass class of job.
+     * @return the getName() or the specialized class name.
      */
-    private static void addMapping(final String name, @NotNull final Class<? extends AbstractJob> jobClass)
+    @Override
+    public String getExperienceTag()
     {
-        if (nameToClassMap.containsKey(name))
-        {
-            throw new IllegalArgumentException("Duplicate type '" + name + "' when adding Job class mapping");
-        }
-        try
-        {
-            if (jobClass.getDeclaredConstructor(CitizenData.class) != null)
-            {
-                nameToClassMap.put(name, jobClass);
-                classToNameMap.put(jobClass, name);
-            }
-        }
-        catch (final NoSuchMethodException exception)
-        {
-            throw new IllegalArgumentException("Missing constructor for type '" + name + "' when adding Job class mapping", exception);
-        }
+        return getName();
     }
-
-    /**
-     * Create a Job from saved NBTTagCompound data.
-     *
-     * @param citizen  The citizen that owns the Job.
-     * @param compound The NBTTagCompound containing the saved Job data.
-     * @return New Job created from the data, or null.
-     */
-    @Nullable
-    public static AbstractJob createFromNBT(final CitizenData citizen, @NotNull final NBTTagCompound compound)
-    {
-        @Nullable AbstractJob job = null;
-        @Nullable Class<? extends AbstractJob> oclass = null;
-
-        try
-        {
-            oclass = nameToClassMap.get(compound.getString(TAG_TYPE));
-
-            if (oclass != null)
-            {
-                final Constructor<?> constructor = oclass.getDeclaredConstructor(CitizenData.class);
-                job = (AbstractJob) constructor.newInstance(citizen);
-            }
-        }
-        catch (@NotNull NoSuchMethodException | InvocationTargetException | IllegalAccessException | InstantiationException e)
-        {
-            Log.getLogger().trace(e);
-        }
-
-        if (job != null)
-        {
-            try
-            {
-                job.readFromNBT(compound);
-            }
-            catch (final RuntimeException ex)
-            {
-                Log.getLogger().error(String.format("A Job %s(%s) has thrown an exception during loading, its state cannot be restored. Report this to the mod author",
-                        compound.getString(TAG_TYPE), oclass.getName()), ex);
-                job = null;
-            }
-        }
-        else
-        {
-            Log.getLogger().warn(String.format("Unknown Job type '%s' or missing constructor of proper format.", compound.getString(TAG_TYPE)));
-        }
-
-        return job;
-    }
-
-    /**
-     * Restore the Job from an NBTTagCompound.
-     *
-     * @param compound NBTTagCompound containing saved Job data.
-     */
-    public void readFromNBT(@NotNull final NBTTagCompound compound)
-    {
-        final NBTTagList itemsNeededTag = compound.getTagList(TAG_ITEMS_NEEDED, Constants.NBT.TAG_COMPOUND);
-        for (int i = 0; i < itemsNeededTag.tagCount(); i++)
-        {
-            final NBTTagCompound itemCompound = itemsNeededTag.getCompoundTagAt(i);
-            itemsNeeded.add(new ItemStack(itemCompound));
-        }
-    }
-
-    /**
-     * Return a Localization textContent for the Job.
-     *
-     * @return localization textContent String.
-     */
-    public abstract String getName();
 
     /**
      * Get the RenderBipedCitizen.Model to use when the Citizen performs this job role.
      *
      * @return Model of the citizen.
      */
-    public RenderBipedCitizen.Model getModel()
+    @Override
+    public IModelType getModel()
     {
-        return RenderBipedCitizen.Model.CITIZEN;
+        return BipedModelType.CITIZEN;
     }
 
     /**
-     * Get the CitizenData that this Job belongs to.
-     *
-     * @return CitizenData that owns this Job.
-     */
-    public CitizenData getCitizen()
-    {
-        return citizen;
-    }
-
-    /**
-     * Get the Colony that this Job is associated with (shortcut for getCitizen().getColony()).
+     * Get the Colony that this Job is associated with (shortcut for getAssignedCitizen().getColonyByPosFromWorld()).
      *
      * @return {@link Colony} of the citizen.
      */
-    public Colony getColony()
+    @Override
+    public IColony getColony()
     {
         return citizen.getColony();
+    }
+
+    @Override
+    public NBTTagCompound serializeNBT()
+    {
+        final NBTTagCompound compound = new NBTTagCompound();
+
+        compound.setString(TAG_JOB_TYPE, getJobRegistryEntry().getRegistryName().toString());
+        compound.setTag(TAG_ASYNC_REQUESTS, getAsyncRequests().stream().map(StandardFactoryController.getInstance()::serialize).collect(NBTUtils.toNBTTagList()));
+        compound.setInteger(TAG_ACTIONS_DONE, actionsDone);
+
+        return compound;
+    }
+
+    @Override
+    public void deserializeNBT(final NBTTagCompound compound)
+    {
+        this.asyncRequests.clear();
+        if (compound.hasKey(TAG_ASYNC_REQUESTS))
+        {
+            this.asyncRequests.addAll(NBTUtils.streamCompound(compound.getTagList(TAG_ASYNC_REQUESTS, Constants.NBT.TAG_COMPOUND))
+                                        .map(StandardFactoryController.getInstance()::deserialize)
+                                        .map(o -> (IToken) o)
+                                        .collect(Collectors.toSet()));
+        }
+        if (compound.hasKey(TAG_ACTIONS_DONE))
+        {
+            actionsDone = compound.getInteger(TAG_ACTIONS_DONE);
+        }
     }
 
     /**
@@ -220,111 +157,28 @@ public abstract class AbstractJob
      */
     public void writeToNBT(@NotNull final NBTTagCompound compound)
     {
-        final String s = classToNameMap.get(this.getClass());
 
-        if (s == null)
-        {
-            throw new IllegalStateException(this.getClass() + " is missing a mapping! This is a bug!");
-        }
-
-        compound.setString(TAG_TYPE, s);
-
-        if (!itemsNeeded.isEmpty())
-        {
-            @NotNull final NBTTagList itemsNeededTag = new NBTTagList();
-            for (@NotNull final ItemStack itemstack : itemsNeeded)
-            {
-                @NotNull final NBTTagCompound itemCompound = new NBTTagCompound();
-                itemstack.writeToNBT(itemCompound);
-                itemsNeededTag.appendTag(itemCompound);
-            }
-            compound.setTag(TAG_ITEMS_NEEDED, itemsNeededTag);
-        }
     }
 
     /**
-     * Does the Job have _all_ the needed items.
+     * Restore the Job from an NBTTagCompound.
      *
-     * @return true if the Job has no needed items.
+     * @param compound NBTTagCompound containing saved Job data.
      */
-    public boolean isMissingNeededItem()
+    public void readFromNBT(@NotNull final NBTTagCompound compound)
     {
-        return !itemsNeeded.isEmpty();
+
     }
 
     /**
-     * Get the list of items needed by the Job.
+     * Get a set of async requests connected to this job.
      *
-     * @return List of items needed by the Job.
+     * @return a set of ITokens.
      */
-    @NotNull
-    public List<ItemStack> getItemsNeeded()
+    @Override
+    public Set<IToken> getAsyncRequests()
     {
-        return Collections.unmodifiableList(itemsNeeded);
-    }
-
-    /**
-     * Reset the items needed.
-     */
-    public void clearItemsNeeded()
-    {
-        itemsNeeded.clear();
-    }
-
-    /**
-     * Add (or increment) an ItemStack to the items needed by the Job.
-     * We're not comparing item damage values since i.e a damaged rod is the same as a normal rod for our purpose.
-     *
-     * @param stack Item+count needed to do the job.
-     */
-    public void addItemNeeded(@NotNull final ItemStack stack)
-    {
-        for (@NotNull final ItemStack neededItem : itemsNeeded)
-        {
-            if (stack.isItemEqualIgnoreDurability(neededItem))
-            {
-                ItemStackUtils.changeSize(neededItem, ItemStackUtils.getSize(stack));
-                return;
-            }
-        }
-
-        itemsNeeded.add(stack.copy());
-    }
-
-    /**
-     * Remove a items from those required to do the Job.
-     * We're not comparing item damage values since i.e a damaged rod is the same as a normal rod for our purpose.
-     *
-     * @param stack ItemStack (item+count) to remove from the list of needed items.
-     * @return modified ItemStack with remaining items (or null).
-     */
-    @Nullable
-    public ItemStack removeItemNeeded(@NotNull final ItemStack stack)
-    {
-        @NotNull final ItemStack stackCopy = stack.copy();
-
-        if (stack.isEmpty())
-        {
-            return stackCopy;
-        }
-
-        for (@NotNull final ItemStack neededItem : itemsNeeded)
-        {
-            if (stack.isItemEqualIgnoreDurability(neededItem))
-            {
-                //todo make this sofisticated as soon as material handling has been implemented.
-                //final int itemsToRemove = Math.min(ItemStackUtils.getSize(neededItem), ItemStackUtils.getSize(stackCopy));
-                //ItemStackUtils.changeSize(neededItem, -itemsToRemove);
-                //ItemStackUtils.changeSize(stackCopy, -itemsToRemove);
-
-                //Deativate this if for now in order to keep working even if not all items are given. previously checked if stackSize is 0 and only removed then.
-                itemsNeeded.remove(neededItem);
-
-                break;
-            }
-        }
-
-        return ItemStackUtils.isEmpty(stackCopy) ? ItemStackUtils.EMPTY : stackCopy;
+        return asyncRequests;
     }
 
     /**
@@ -332,27 +186,50 @@ public abstract class AbstractJob
      *
      * @param tasks EntityAITasks list to add tasks to.
      */
-    public void addTasks(@NotNull final EntityAITasks tasks)
+    @Override
+    public void addWorkerAIToTaskList(@NotNull final EntityAITasks tasks)
     {
-        final AbstractAISkeleton<? extends AbstractJob> aiTask = generateAI();
-        if (aiTask != null)
+        final AI tempAI = generateAI();
+
+        if (tempAI == null)
         {
-            tasks.addTask(TASK_PRIORITY, aiTask);
+            Log.getLogger().error("Failed to create AI for citizen!");
+            if (citizen == null)
+            {
+                Log.getLogger().error("CitizenData is null for job: " + nameTag + " jobClass: " + this.getClass());
+                return;
+            }
+            Log.getLogger()
+              .error(
+                "Affected Citizen name:" + citizen.getName() + " id:" + citizen.getId() + " job:" + citizen.getJob() + " jobForAICreation:" + nameTag + " class:" + this.getClass()
+                  + " entityPresent:"
+                  + citizen.getCitizenEntity().isPresent());
+            return;
         }
+
+        workerAI = new WeakReference<>(tempAI);
+        tasks.addTask(TASK_PRIORITY, tempAI);
     }
 
     /**
-     * Generate your AI class to register.
-     * <p>
-     * Suppressing Sonar Rule squid:S1452
-     * This rule does "Generic wildcard types should not be used in return parameters"
-     * But in this case the rule does not apply because
-     * We are fine with all AbstractJob implementations and need generics only for java
+     * Check if the citizen already checked for food in his chest today.
      *
-     * @return your personal AI instance.
+     * @return true if so.
      */
-    @SuppressWarnings("squid:S1452")
-    public abstract AbstractAISkeleton<? extends AbstractJob> generateAI();
+    @Override
+    public boolean hasCheckedForFoodToday()
+    {
+        return searchedForFoodToday;
+    }
+
+    /**
+     * Sets that the citizen on this day already searched for food in his chest.
+     */
+    @Override
+    public void setCheckedForFood()
+    {
+        searchedForFoodToday = true;
+    }
 
     /**
      * This method can be used to display the current status.
@@ -360,6 +237,7 @@ public abstract class AbstractJob
      *
      * @return Small string to display info in name tag
      */
+    @Override
     public String getNameTagDescription()
     {
         return this.nameTag;
@@ -371,6 +249,7 @@ public abstract class AbstractJob
      *
      * @param nameTag The name tag to display.
      */
+    @Override
     public final void setNameTag(final String nameTag)
     {
         this.nameTag = nameTag;
@@ -381,6 +260,7 @@ public abstract class AbstractJob
      *
      * @return soundEvent to be played.
      */
+    @Override
     public SoundEvent getBedTimeSound()
     {
         return null;
@@ -391,6 +271,7 @@ public abstract class AbstractJob
      *
      * @return soundEvent to be played.
      */
+    @Override
     public SoundEvent getBadWeatherSound()
     {
         return null;
@@ -401,6 +282,7 @@ public abstract class AbstractJob
      *
      * @return soundEvent to be played.
      */
+    @Override
     public SoundEvent getMoveAwaySound()
     {
         return null;
@@ -412,8 +294,146 @@ public abstract class AbstractJob
      * @param source  of the death
      * @param citizen which just died
      */
-    public void triggerDeathAchievement(final DamageSource source, final EntityCitizen citizen)
+    @Override
+    public void triggerDeathAchievement(final DamageSource source, final AbstractEntityCitizen citizen)
     {
 
+    }
+
+    /**
+     * Method called when a stack is pickup by the entity.
+     *
+     * @param pickedUpStack The stack that is being picked up.
+     * @return true when the stack has been used to resolve a request, false when not.
+     */
+    @Override
+    public boolean onStackPickUp(@NotNull final ItemStack pickedUpStack)
+    {
+        if (getCitizen().getWorkBuilding() != null)
+        {
+            if (getCitizen().getWorkBuilding().overruleNextOpenRequestOfCitizenWithStack(getCitizen(), pickedUpStack.copy()))
+            {
+                return true;
+            }
+        }
+
+        if (getCitizen().getHomeBuilding() != null)
+        {
+            return getCitizen().getHomeBuilding().overruleNextOpenRequestOfCitizenWithStack(getCitizen(), pickedUpStack.copy());
+        }
+
+        return false;
+    }
+
+    /**
+     * Levelup actions on citizen levelup, allows custom actions based on Jobs
+     */
+    @Override
+    public void onLevelUp(final int newLevel)
+    {
+        // Default does nothing
+    }
+
+    /**
+     * Get the CitizenData that this Job belongs to.
+     *
+     * @return CitizenData that owns this Job.
+     */
+    @Override
+    public ICitizenData getCitizen()
+    {
+        return citizen;
+    }
+
+    /**
+     * Executed every time the colony woke up.
+     */
+    @Override
+    public void onWakeUp()
+    {
+        searchedForFoodToday = false;
+    }
+
+    /**
+     * Check if it is okay to eat
+     *
+     * @return true if so.
+     */
+    @Override
+    public boolean isOkayToEat()
+    {
+        return (workerAI.get() != null && workerAI.get().getState().isOkayToEat());
+    }
+
+    /**
+     * Getter for the amount of actions done.
+     *
+     * @return the quantity.
+     */
+    @Override
+    public int getActionsDone()
+    {
+        return actionsDone;
+    }
+
+    /**
+     * Actions done since the last reset.
+     * Used for example to detect
+     * if and when the inventory has to be dumped.
+     */
+    @Override
+    public void incrementActionsDone()
+    {
+        actionsDone++;
+    }
+
+    /**
+     * Clear the actions done counter.
+     * Call this when dumping into the chest.
+     */
+    @Override
+    public void clearActionsDone()
+    {
+        this.actionsDone = 0;
+    }
+
+    /**
+     * Get the worker AI associated to this job
+     *
+     * @return worker AI
+     */
+    @Override
+    public AI getWorkerAI()
+    {
+        return workerAI.get();
+    }
+
+    /**
+     * Check if the citizen is in an idle state.
+     *
+     * @return true if so.
+     */
+    @Override
+    public boolean isIdling()
+    {
+        return (workerAI.get() != null && workerAI.get().getState() == AIWorkerState.IDLE);
+    }
+
+    /**
+     * Reset the AI after eating at a restaurant
+     */
+    @Override
+    public void resetAIAfterEating()
+    {
+        if (workerAI.get() != null)
+        {
+            workerAI.get().resetAI();
+        }
+    }
+
+    @Override
+    public boolean allowsAvoidance()
+    {
+        return true;
     }
 }

@@ -1,12 +1,16 @@
 package com.minecolonies.api.util;
 
+import com.minecolonies.api.crafting.ItemStorage;
+import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
 import net.minecraft.block.BlockLeaves;
 import net.minecraft.block.material.Material;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
+import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.FakePlayer;
@@ -27,12 +31,12 @@ public final class EntityUtils
     /**
      * How many blocks the citizen needs to stand safe.
      */
-    private static final int    AIR_SPACE_ABOVE_TO_CHECK = 2;
+    private static final int AIR_SPACE_ABOVE_TO_CHECK = 2;
 
     /**
      * Default range for moving to something until we stop.
      */
-    private static final int    DEFAULT_MOVE_RANGE       = 3;
+    private static final int    DEFAULT_MOVE_RANGE  = 3;
     private static final int    TELEPORT_RANGE      = 512;
     private static final double MIDDLE_BLOCK_OFFSET = 0.5D;
     private static final int    SCAN_RADIUS         = 5;
@@ -131,6 +135,33 @@ public final class EntityUtils
     }
 
     /**
+     * Returns the new rotation degree calculated from the current and intended
+     * rotation up to a max.
+     *
+     * @param currentRotation  the current rotation the citizen has.
+     * @param intendedRotation the wanted rotation he should have after applying
+     *                         this.
+     * @param maxIncrement     the 'movement speed.
+     * @return a rotation value he should move.
+     */
+    public static double updateRotation(final double currentRotation, final double intendedRotation, final double maxIncrement)
+    {
+        double wrappedAngle = MathHelper.wrapDegrees(intendedRotation - currentRotation);
+
+        if (wrappedAngle > maxIncrement)
+        {
+            wrappedAngle = maxIncrement;
+        }
+
+        if (wrappedAngle < -maxIncrement)
+        {
+            wrappedAngle = -maxIncrement;
+        }
+
+        return currentRotation + wrappedAngle;
+    }
+
+    /**
      * Check for free space AIR_SPACE_ABOVE_TO_CHECK blocks high.
      * <p>
      * And ensure a solid ground
@@ -180,9 +211,9 @@ public final class EntityUtils
     {
         return Utils.scanForBlockNearPoint(
           world,
-          nearPoint,
+          nearPoint.down(),
           1,
-          1,
+          2,
           1,
           2,
           Blocks.AIR,
@@ -254,25 +285,35 @@ public final class EntityUtils
      */
     public static boolean isLivingAtSiteWithMove(@NotNull final EntityLiving entity, final int x, final int y, final int z, final int range)
     {
+        if (x == 0 && y == 0 && z == 0)
+        {
+            return false;
+        }
+
         if (!isLivingAtSite(entity, x, y, z, TELEPORT_RANGE))
         {
-            final BlockPos spawnPoint =
-                    Utils.scanForBlockNearPoint(entity.getEntityWorld(),
-                            new BlockPos(x, y, z),
-                            SCAN_RADIUS, SCAN_RADIUS, SCAN_RADIUS, 2,
-                            Blocks.AIR,
-                            Blocks.SNOW_LAYER,
-                            Blocks.TALLGRASS,
-                            Blocks.RED_FLOWER,
-                            Blocks.YELLOW_FLOWER,
-                            Blocks.CARPET);
+            BlockPos spawnPoint =
+              Utils.scanForBlockNearPoint(entity.getEntityWorld(),
+                new BlockPos(x, y, z),
+                SCAN_RADIUS, SCAN_RADIUS, SCAN_RADIUS, 2,
+                Blocks.AIR,
+                Blocks.SNOW_LAYER,
+                Blocks.TALLGRASS,
+                Blocks.RED_FLOWER,
+                Blocks.YELLOW_FLOWER,
+                Blocks.CARPET);
+
+            if (spawnPoint == null)
+            {
+                spawnPoint = new BlockPos(x, y, z);
+            }
 
             entity.setLocationAndAngles(
-                    spawnPoint.getX() + MIDDLE_BLOCK_OFFSET,
-                    spawnPoint.getY(),
-                    spawnPoint.getZ() + MIDDLE_BLOCK_OFFSET,
-                    entity.rotationYaw,
-                    entity.rotationPitch);
+              spawnPoint.getX() + MIDDLE_BLOCK_OFFSET,
+              spawnPoint.getY(),
+              spawnPoint.getZ() + MIDDLE_BLOCK_OFFSET,
+              entity.rotationYaw,
+              entity.rotationPitch);
             return true;
         }
 
@@ -280,14 +321,39 @@ public final class EntityUtils
     }
 
     /**
+     * Checks if a certain entity is in the world at a certain position already.
+     *
+     * @param entity the entity.
+     * @param world  the world.
+     * @return true if there.
+     */
+    public static boolean isEntityAtPosition(final Entity entity, final World world, final Entity placer)
+    {
+        final List<ItemStorage> existingReq = ItemStackUtils.getListOfStackForEntity(entity, placer);
+        return world.getEntitiesWithinAABB(Entity.class, new AxisAlignedBB(entity.getPosition().add(1, 1, 1), entity.getPosition().add(-1, -1, -1)))
+                 .stream()
+                 .anyMatch(ent -> ent.posX == entity.posX && ent.posY == entity.posY && ent.posZ == entity.posZ && ItemStackUtils.getListOfStackForEntity(entity, placer).equals(existingReq));
+    }
+
+    public static boolean isEntityAtPosition(final Entity entity, final World world, final AbstractEntityCitizen entityCitizen)
+    {
+        if (entity instanceof Entity)
+        {
+            return EntityUtils.isEntityAtPosition(entity, world, (Entity) entityCitizen);
+        }
+
+        return false;
+    }
+
+    /**
      * Returns whether or not the entity is within a specific range of his
      * working site.
      *
      * @param entityLiving entity to check
-     * @param x      X-coordinate
-     * @param y      Y-coordinate
-     * @param z      Z-coordinate
-     * @param range  Range to check in
+     * @param x            X-coordinate
+     * @param y            Y-coordinate
+     * @param z            Z-coordinate
+     * @param range        Range to check in
      * @return True if entity is at site, otherwise false
      */
     public static boolean isLivingAtSite(@NotNull final EntityLiving entityLiving, final int x, final int y, final int z, final int range)

@@ -1,10 +1,10 @@
 package com.minecolonies.coremod.network.messages;
 
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.IColonyManager;
+import com.minecolonies.api.colony.IColonyView;
 import com.minecolonies.api.colony.permissions.Action;
 import com.minecolonies.coremod.MineColonies;
-import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.ColonyView;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
@@ -22,6 +22,11 @@ public class TownHallRenameMessage extends AbstractMessage<TownHallRenameMessage
     private String name;
 
     /**
+     * The dimension of the message.
+     */
+    private int dimension;
+
+    /**
      * Empty public constructor.
      */
     public TownHallRenameMessage()
@@ -35,11 +40,12 @@ public class TownHallRenameMessage extends AbstractMessage<TownHallRenameMessage
      * @param colony Colony the rename is going to occur in.
      * @param name   New name of the town hall.
      */
-    public TownHallRenameMessage(@NotNull final ColonyView colony, final String name)
+    public TownHallRenameMessage(@NotNull final IColonyView colony, final String name)
     {
         super();
         this.colonyId = colony.getID();
         this.name = (name.length() <= MAX_NAME_LENGTH) ? name : name.substring(0, SUBSTRING_LENGTH);
+        this.dimension = colony.getDimension();
     }
 
     @Override
@@ -47,6 +53,7 @@ public class TownHallRenameMessage extends AbstractMessage<TownHallRenameMessage
     {
         colonyId = buf.readInt();
         name = ByteBufUtils.readUTF8String(buf);
+        dimension = buf.readInt();
     }
 
     @Override
@@ -54,12 +61,13 @@ public class TownHallRenameMessage extends AbstractMessage<TownHallRenameMessage
     {
         buf.writeInt(colonyId);
         ByteBufUtils.writeUTF8String(buf, name);
+        buf.writeInt(dimension);
     }
 
     @Override
     public void messageOnServerThread(final TownHallRenameMessage message, final EntityPlayerMP player)
     {
-        final Colony colony = ColonyManager.getColony(message.colonyId);
+        final IColony colony = IColonyManager.getInstance().getColonyByDimension(message.colonyId, message.dimension);
         if (colony != null)
         {
             //Verify player has permission to change this huts settings

@@ -1,6 +1,8 @@
 package com.minecolonies.coremod.entity.pathfinding;
 
-import com.minecolonies.coremod.entity.ai.citizen.fisherman.Pond;
+import com.minecolonies.api.entity.pathfinding.WaterPathResult;
+import com.minecolonies.api.util.Pond;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
@@ -27,31 +29,16 @@ public class PathJobFindWater extends AbstractPathJob
      *
      * @param world the world within which to path.
      * @param start the start position from which to path from.
-     * @param home  the position of the workers hut.
+     * @param home  the position of the worker hut.
      * @param range maximum path range.
      * @param ponds already visited fishing places.
+     * @param entity the entity.
      */
-    PathJobFindWater(final World world, @NotNull final BlockPos start, final BlockPos home, final int range, @NotNull final List<BlockPos> ponds)
+    PathJobFindWater(final World world, @NotNull final BlockPos start, final BlockPos home, final int range, @NotNull final List<BlockPos> ponds, final EntityLivingBase entity)
     {
-        super(world, start, start, range, new WaterPathResult());
+        super(world, start, start, range, new WaterPathResult(), entity);
         this.ponds = new ArrayList<>(ponds);
         hutLocation = home;
-    }
-
-    /**
-     * Contains the result of the path job to find water.
-     */
-    public static class WaterPathResult extends PathResult
-    {
-        /**
-         * The position of the pond.
-         */
-        public BlockPos pond;
-
-        /**
-         * If the pond is empty.
-         */
-        public boolean isEmpty;
     }
 
     private static double squareDistance(@NotNull final BlockPos currentPond, @NotNull final BlockPos nextPond)

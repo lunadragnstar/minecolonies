@@ -1,20 +1,20 @@
 package com.minecolonies.coremod.network.messages;
 
+import com.minecolonies.api.colony.IColonyManager;
+import com.minecolonies.api.colony.workorders.IWorkOrder;
+import com.minecolonies.api.colony.workorders.WorkOrderView;
 import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.workorders.AbstractWorkOrder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import net.minecraft.client.Minecraft;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Add or Update a ColonyView on the client.
  */
-public class ColonyViewWorkOrderMessage implements IMessage, IMessageHandler<ColonyViewWorkOrderMessage, IMessage>
+public class ColonyViewWorkOrderMessage extends AbstractMessage<ColonyViewWorkOrderMessage, IMessage>
 {
     private int     colonyId;
     private int     workOrderId;
@@ -29,12 +29,12 @@ public class ColonyViewWorkOrderMessage implements IMessage, IMessageHandler<Col
     }
 
     /**
-     * Updates a {@link com.minecolonies.coremod.colony.WorkOrderView} of the workOrders.
+     * Updates a {@link WorkOrderView} of the workOrders.
      *
      * @param colony    colony of the workOrder.
      * @param workOrder workOrder of the colony to update view.
      */
-    public ColonyViewWorkOrderMessage(@NotNull final Colony colony, @NotNull final AbstractWorkOrder workOrder)
+    public ColonyViewWorkOrderMessage(@NotNull final Colony colony, @NotNull final IWorkOrder workOrder)
     {
         this.colonyId = colony.getID();
         this.workOrderBuffer = Unpooled.buffer();
@@ -45,9 +45,10 @@ public class ColonyViewWorkOrderMessage implements IMessage, IMessageHandler<Col
     @Override
     public void fromBytes(@NotNull final ByteBuf buf)
     {
-        colonyId = buf.readInt();
-        workOrderId = buf.readInt();
-        workOrderBuffer = buf;
+        final ByteBuf newbuf = buf.retain();
+        colonyId = newbuf.readInt();
+        workOrderId = newbuf.readInt();
+        workOrderBuffer = newbuf;
     }
 
     @Override
@@ -58,11 +59,11 @@ public class ColonyViewWorkOrderMessage implements IMessage, IMessageHandler<Col
         buf.writeBytes(workOrderBuffer);
     }
 
-    @Nullable
     @Override
-    public IMessage onMessage(@NotNull final ColonyViewWorkOrderMessage message, final MessageContext ctx)
+    protected void messageOnClientThread(final ColonyViewWorkOrderMessage message, final MessageContext ctx)
     {
-        return ColonyManager.handleColonyViewWorkOrderMessage(message.colonyId, message.workOrderBuffer);
+        IColonyManager.getInstance().handleColonyViewWorkOrderMessage(message.colonyId, message.workOrderBuffer, Minecraft.getMinecraft().world.provider.getDimension());
+        message.workOrderBuffer.release();
     }
 }
 

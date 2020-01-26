@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "   ",
+    "C C",
+    "CCC"
+  ],
+  "conditions": [
+    {
+      "type": "minecolonies:config_condition",
+      "key": "supply"
+    }
+  ],
+  "key": {
+    "C": {
+      "type": "forge:ore_dict",
+      "ore": "chest"
+    }
+  },
+    "result": {
+      "item": "minecolonies:supplycampdeployer"
+    }
+}

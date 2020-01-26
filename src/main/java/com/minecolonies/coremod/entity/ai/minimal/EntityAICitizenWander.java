@@ -1,24 +1,24 @@
 package com.minecolonies.coremod.entity.ai.minimal;
 
+import com.minecolonies.api.entity.ai.DesiredActivity;
+import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
+import com.minecolonies.api.util.BlockPosUtil;
 import com.minecolonies.api.util.CompatibilityUtils;
-import com.minecolonies.coremod.entity.EntityCitizen;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.ai.RandomPositionGenerator;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import org.jetbrains.annotations.NotNull;
 
 /**
  * Entity action to wander randomly around.
  */
 public class EntityAICitizenWander extends EntityAIBase
 {
-    private final EntityCitizen citizen;
-    private final double        speed;
-    private       double        xPosition;
-    private       double        yPosition;
-    private       double        zPosition;
+    protected final AbstractEntityCitizen citizen;
+    protected final double                speed;
+    private final   double                randomModifier;
+    private         double                xPosition;
+    private         double                yPosition;
+    private         double                zPosition;
 
     /**
      * Instantiates this task.
@@ -26,11 +26,12 @@ public class EntityAICitizenWander extends EntityAIBase
      * @param citizen the citizen.
      * @param speed   the speed.
      */
-    public EntityAICitizenWander(final EntityCitizen citizen, final double speed)
+    public EntityAICitizenWander(final AbstractEntityCitizen citizen, final double speed, final double randomModifier)
     {
         super();
         this.citizen = citizen;
         this.speed = speed;
+        this.randomModifier = randomModifier;
         this.setMutexBits(1);
     }
 
@@ -42,22 +43,26 @@ public class EntityAICitizenWander extends EntityAIBase
     @Override
     public boolean shouldExecute()
     {
-        if (isToOld() || checkForRandom() || citizen.getDesiredActivity() == EntityCitizen.DesiredActivity.SLEEP)
+        if (isTooOld() || checkForRandom() || citizen.getDesiredActivity() == DesiredActivity.SLEEP || !citizen.getNavigator().noPath())
         {
             return false;
         }
 
-        Vec3d vec3d = RandomPositionGenerator.getLandPos(citizen, 10, 7);
-        if (vec3d == null)
+        Vec3d vec3d = null;
+        if(vec3d == null)
         {
-            return false;
+            vec3d = RandomPositionGenerator.getLandPos(citizen, 10, 7);
+            if (vec3d == null)
+            {
+                return false;
+            }
         }
 
-        vec3d = new Vec3d(vec3d.xCoord, getValidHeight(vec3d), vec3d.zCoord);
+        vec3d = new Vec3d(vec3d.x, BlockPosUtil.getValidHeight(vec3d, CompatibilityUtils.getWorldFromCitizen(citizen)), vec3d.z);
 
-        this.xPosition = vec3d.xCoord;
-        this.yPosition = vec3d.yCoord;
-        this.zPosition = vec3d.zCoord;
+        this.xPosition = vec3d.x;
+        this.yPosition = vec3d.y;
+        this.zPosition = vec3d.z;
 
         return true;
     }
@@ -68,42 +73,14 @@ public class EntityAICitizenWander extends EntityAIBase
      *
      * @return True when age => 100, otherwise false.
      */
-    private boolean isToOld()
+    private boolean isTooOld()
     {
-        return citizen.getAge() >= 100;
+        return citizen.getGrowingAge() >= 100;
     }
 
     private boolean checkForRandom()
     {
-        return citizen.getRNG().nextInt(120) != 0;
-    }
-
-    /**
-     * Returns the right height for the given position (ground block).
-     *
-     * @param position Current position of the entity.
-     * @return Ground level at (position.x, position.z).
-     */
-    private double getValidHeight(@NotNull final Vec3d position)
-    {
-        double returnHeight = position.yCoord;
-        if (position.yCoord < 0)
-        {
-            returnHeight = 0;
-        }
-
-        while (returnHeight >= 1 && CompatibilityUtils.getWorld(citizen).isAirBlock(new BlockPos(MathHelper.floor(position.xCoord),
-                                                                           (int) returnHeight,
-                                                                           MathHelper.floor(position.zCoord))))
-        {
-            returnHeight -= 1.0D;
-        }
-
-        while (!CompatibilityUtils.getWorld(citizen).isAirBlock(new BlockPos(MathHelper.floor(position.xCoord), (int) returnHeight, MathHelper.floor(position.zCoord))))
-        {
-            returnHeight += 1.0D;
-        }
-        return returnHeight;
+        return citizen.getRNG().nextInt((int) (randomModifier * 120.0D)) != 0;
     }
 
     /**
@@ -111,7 +88,7 @@ public class EntityAICitizenWander extends EntityAIBase
      * Returns whether an in-progress EntityAIBase should continue executing.
      */
     @Override
-    public boolean continueExecuting()
+    public boolean shouldContinueExecuting()
     {
         return !citizen.getNavigator().noPath();
     }

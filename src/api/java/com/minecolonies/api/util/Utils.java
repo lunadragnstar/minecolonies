@@ -7,6 +7,7 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.File;
 import java.util.Objects;
 
 /**
@@ -36,20 +37,20 @@ public final class Utils
      */
     @Nullable
     public static BlockPos scanForBlockNearPoint(
-                                                  @NotNull final World world,
-                                                  @NotNull final BlockPos point,
-                                                  final int radiusX,
-                                                  final int radiusY,
-                                                  final int radiusZ,
-                                                  final int height,
-                                                  final Block... blocks)
+      @NotNull final World world,
+      @NotNull final BlockPos point,
+      final int radiusX,
+      final int radiusY,
+      final int radiusZ,
+      final int height,
+      final Block... blocks)
     {
         @Nullable BlockPos closestCoords = null;
         double minDistance = Double.MAX_VALUE;
 
-        for (int i = point.getX() - radiusX; i <= point.getX() + radiusX; i++)
+        for (int j = point.getY(); j <= point.getY() + radiusY; j++)
         {
-            for (int j = point.getY() - radiusY; j <= point.getY() + radiusY; j++)
+            for (int i = point.getX() - radiusX; i <= point.getX() + radiusX; i++)
             {
                 for (int k = point.getZ() - radiusZ; k <= point.getZ() + radiusZ; k++)
                 {
@@ -57,11 +58,14 @@ public final class Utils
                     {
                         @NotNull final BlockPos tempCoords = new BlockPos(i, j, k);
 
-                        final double distance = BlockPosUtil.getDistanceSquared(tempCoords, point);
-                        if (closestCoords == null || distance < minDistance)
+                        if (world.getBlockState(tempCoords.down()).getMaterial().isSolid() || world.getBlockState(tempCoords.down(2)).getMaterial().isSolid())
                         {
-                            closestCoords = tempCoords;
-                            minDistance = distance;
+                            final double distance = BlockPosUtil.getDistanceSquared(tempCoords, point);
+                            if (closestCoords == null || distance < minDistance)
+                            {
+                                closestCoords = tempCoords;
+                                minDistance = distance;
+                            }
                         }
                     }
                 }
@@ -247,4 +251,16 @@ public final class Utils
         return data ^ flag;
     }
 
+    /**
+     * Checks if directory exists, else creates it.
+     *
+     * @param directory the directory to check.
+     */
+    public static void checkDirectory(@NotNull final File directory)
+    {
+        if (!directory.exists() && !directory.mkdirs())
+        {
+            Log.getLogger().error("Directory doesn't exist and failed to be created: " + directory.toString());
+        }
+    }
 }

@@ -1,10 +1,11 @@
 package com.minecolonies.coremod.network.messages;
 
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.IColonyManager;
+import com.minecolonies.api.colony.buildings.IBuilding;
 import com.minecolonies.api.util.BlockPosUtil;
 import com.minecolonies.api.util.Log;
-import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
+import com.minecolonies.coremod.colony.buildings.views.AbstractBuildingView;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
@@ -29,6 +30,11 @@ public class MarkBuildingDirtyMessage extends AbstractMessage<MarkBuildingDirtyM
     private int      colonyId;
 
     /**
+     * The dimension of the message.
+     */
+    private int dimension;
+
+    /**
      * Empty constructor used when registering the message.
      */
     public MarkBuildingDirtyMessage()
@@ -41,11 +47,12 @@ public class MarkBuildingDirtyMessage extends AbstractMessage<MarkBuildingDirtyM
      *
      * @param building AbstractBuilding of the request.
      */
-    public MarkBuildingDirtyMessage(@NotNull final AbstractBuilding.View building)
+    public MarkBuildingDirtyMessage(@NotNull final AbstractBuildingView building)
     {
         super();
         this.colonyId = building.getColony().getID();
         this.buildingId = building.getID();
+        this.dimension = building.getColony().getDimension();
     }
 
     @Override
@@ -53,6 +60,7 @@ public class MarkBuildingDirtyMessage extends AbstractMessage<MarkBuildingDirtyM
     {
         colonyId = buf.readInt();
         buildingId = BlockPosUtil.readFromByteBuf(buf);
+        dimension = buf.readInt();
     }
 
     @Override
@@ -60,23 +68,23 @@ public class MarkBuildingDirtyMessage extends AbstractMessage<MarkBuildingDirtyM
     {
         buf.writeInt(colonyId);
         BlockPosUtil.writeToByteBuf(buf, buildingId);
+        buf.writeInt(dimension);
     }
 
     @Override
     public void messageOnServerThread(final MarkBuildingDirtyMessage message, final EntityPlayerMP player)
     {
-
-        final Colony colony = ColonyManager.getColony(message.colonyId);
+        final IColony colony = IColonyManager.getInstance().getColonyByDimension(message.colonyId, message.dimension);
         if (colony == null)
         {
-            Log.getLogger().warn("TransferItemsRequestMessage colony is null");
+            Log.getLogger().warn("MarkBuildingDirtyMessage colony is null");
             return;
         }
 
-        final AbstractBuilding building = colony.getBuilding(message.buildingId);
-        if (building == null)
+        final IBuilding building = colony.getBuildingManager().getBuilding(message.buildingId);
+        if (building == null || building.getTileEntity() == null)
         {
-            Log.getLogger().warn("TransferItemsRequestMessage building is null");
+            Log.getLogger().warn("MarkBuildingDirtyMessage building or tileEntity is null");
             return;
         }
 

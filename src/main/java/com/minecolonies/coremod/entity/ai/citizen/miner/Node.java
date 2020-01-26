@@ -7,8 +7,11 @@ import net.minecraftforge.common.util.Constants;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Objects;
+import java.util.Random;
+
 /**
- * Miner Node Data Structure.
+ * Miner Node Data StructureIterator.
  * <p>
  * When a node is completed we should add the surrounding nodes to level as AVAILABLE
  * also note that we don't want node (0, -1) because there will be a ladder on the back
@@ -25,6 +28,11 @@ public class Node
     private static final String TAG_STATUS  = "Status";
     private static final String TAG_PARENTX = "ParentX";
     private static final String TAG_PARENTZ = "ParentZ";
+
+    /**
+     * Random object.
+     */
+    private final Random random = new Random();
 
     /**
      * The distance to the center of the next node.
@@ -89,8 +97,8 @@ public class Node
         // for backwards compatibility check if the types are doubles
         final boolean hasDoubles = compound.hasKey(TAG_X, Constants.NBT.TAG_DOUBLE);
 
-        int x;
-        int z;
+        final int x;
+        final int z;
         if (hasDoubles)
         {
             x = MathHelper.floor(compound.getDouble(TAG_X));
@@ -112,8 +120,8 @@ public class Node
             if (hasDoubles)
             {
                 parent = new Vec2i(
-                        MathHelper.floor(compound.getDouble(TAG_PARENTX)),
-                        MathHelper.floor(compound.getDouble(TAG_PARENTZ)));
+                                    MathHelper.floor(compound.getDouble(TAG_PARENTX)),
+                                    MathHelper.floor(compound.getDouble(TAG_PARENTZ)));
             }
             else
             {
@@ -274,13 +282,73 @@ public class Node
     }
 
     /**
+     * Return a random next node to work at, might be at this node or at a parent.
+     * @return the next node to go to.
+     * @param level the level it is part of.
+     */
+    @Nullable
+    public Node getRandomNextNode(final Level level, final int step)
+    {
+        if (step > 3)
+        {
+            return null;
+        }
+
+        final Node nextNode;
+        switch (random.nextInt(3))
+        {
+            case 0:
+                nextNode = level.getOpenNode(getNorthNodeCenter());
+                break;
+            case 1:
+                nextNode = level.getOpenNode(getSouthNodeCenter());
+                break;
+            case 2:
+                nextNode = level.getOpenNode(getEastNodeCenter());
+                break;
+            default:
+                nextNode = level.getOpenNode(getWestNodeCenter());
+        }
+
+        if (nextNode == null || nextNode.style == NodeType.SHAFT)
+        {
+            final Node parent = level.getOpenNode(getParent());
+            return parent == null ? null : parent.getRandomNextNode(level, step+1);
+        }
+        return nextNode;
+    }
+
+    @Override
+    public boolean equals(final Object o)
+    {
+        if (this == o)
+        {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass())
+        {
+            return false;
+        }
+        final Node node = (Node) o;
+        return x == node.x &&
+                 z == node.z;
+    }
+
+    @Override
+    public int hashCode()
+    {
+
+        return Objects.hash(x, z);
+    }
+
+    /**
      * Sets the status of the node.
      * AVAILABLE means it can be mined
      * IN_PROGRESS means it is currently being mined
      * COMPLETED means it has been mined and all torches/wood structure has been placed
      * LADDER means this side has the ladder and must not be mined
      */
-    enum NodeStatus
+    public enum NodeStatus
     {
         //Not built yet.
         AVAILABLE,

@@ -1,24 +1,27 @@
 package com.minecolonies.coremod.network.messages;
 
-import com.minecolonies.coremod.colony.CitizenData;
+import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.IColonyManager;
 import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.ColonyManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Add or Update a ColonyView on the client.
  */
-public class ColonyViewCitizenViewMessage implements IMessage, IMessageHandler<ColonyViewCitizenViewMessage, IMessage>
+public class ColonyViewCitizenViewMessage extends AbstractMessage<ColonyViewCitizenViewMessage, IMessage>
 {
     private int     colonyId;
     private int     citizenId;
     private ByteBuf citizenBuffer;
+
+    /**
+     * The dimension the citizen is in.
+     */
+    private int dimension;
 
     /**
      * Empty constructor used when registering the message.
@@ -34,11 +37,13 @@ public class ColonyViewCitizenViewMessage implements IMessage, IMessageHandler<C
      * @param colony  Colony of the citizen
      * @param citizen Citizen data of the citizen to update view
      */
-    public ColonyViewCitizenViewMessage(@NotNull final Colony colony, @NotNull final CitizenData citizen)
+    public ColonyViewCitizenViewMessage(@NotNull final Colony colony, @NotNull final ICitizenData citizen)
     {
+        super();
         this.colonyId = colony.getID();
         this.citizenId = citizen.getId();
         this.citizenBuffer = Unpooled.buffer();
+        this.dimension = citizen.getColony().getDimension();
         citizen.serializeViewNetworkData(citizenBuffer);
     }
 
@@ -47,8 +52,8 @@ public class ColonyViewCitizenViewMessage implements IMessage, IMessageHandler<C
     {
         colonyId = buf.readInt();
         citizenId = buf.readInt();
-        this.citizenBuffer = Unpooled.buffer();
-        buf.readBytes(citizenBuffer, buf.readableBytes());
+        dimension = buf.readInt();
+        this.citizenBuffer = buf.retain();
     }
 
     @Override
@@ -56,13 +61,14 @@ public class ColonyViewCitizenViewMessage implements IMessage, IMessageHandler<C
     {
         buf.writeInt(colonyId);
         buf.writeInt(citizenId);
+        buf.writeInt(dimension);
         buf.writeBytes(citizenBuffer);
     }
 
-    @Nullable
     @Override
-    public IMessage onMessage(@NotNull final ColonyViewCitizenViewMessage message, final MessageContext ctx)
+    protected void messageOnClientThread(final ColonyViewCitizenViewMessage message, final MessageContext ctx)
     {
-        return ColonyManager.handleColonyViewCitizensMessage(message.colonyId, message.citizenId, message.citizenBuffer);
+        IColonyManager.getInstance().handleColonyViewCitizensMessage(message.colonyId, message.citizenId, message.citizenBuffer, message.dimension);
+        message.citizenBuffer.release();
     }
 }

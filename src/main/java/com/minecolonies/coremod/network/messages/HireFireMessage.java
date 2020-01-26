@@ -1,12 +1,11 @@
 package com.minecolonies.coremod.network.messages;
 
+import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.IColonyManager;
 import com.minecolonies.api.colony.permissions.Action;
 import com.minecolonies.api.util.BlockPosUtil;
-import com.minecolonies.coremod.colony.CitizenData;
-import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
-import com.minecolonies.coremod.colony.buildings.AbstractBuildingWorker;
+import com.minecolonies.coremod.colony.buildings.views.AbstractBuildingView;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
@@ -39,6 +38,11 @@ public class HireFireMessage extends AbstractMessage<HireFireMessage, IMessage>
     private int citizenID;
 
     /**
+     * The dimension of the message.
+     */
+    private int dimension;
+
+    /**
      * Empty public constructor.
      */
     public HireFireMessage()
@@ -53,13 +57,14 @@ public class HireFireMessage extends AbstractMessage<HireFireMessage, IMessage>
      * @param hire      hire or fire the citizens
      * @param citizenID the id of the citizen to fill the job.
      */
-    public HireFireMessage(@NotNull final AbstractBuilding.View building, final boolean hire, final int citizenID)
+    public HireFireMessage(@NotNull final AbstractBuildingView building, final boolean hire, final int citizenID)
     {
         super();
         this.colonyId = building.getColony().getID();
         this.buildingId = building.getID();
         this.hire = hire;
         this.citizenID = citizenID;
+        this.dimension = building.getColony().getDimension();
     }
 
     /**
@@ -74,6 +79,7 @@ public class HireFireMessage extends AbstractMessage<HireFireMessage, IMessage>
         buildingId = BlockPosUtil.readFromByteBuf(buf);
         hire = buf.readBoolean();
         citizenID = buf.readInt();
+        dimension = buf.readInt();
     }
 
     /**
@@ -88,12 +94,13 @@ public class HireFireMessage extends AbstractMessage<HireFireMessage, IMessage>
         BlockPosUtil.writeToByteBuf(buf, buildingId);
         buf.writeBoolean(hire);
         buf.writeInt(citizenID);
+        buf.writeInt(dimension);
     }
 
     @Override
     public void messageOnServerThread(final HireFireMessage message, final EntityPlayerMP player)
     {
-        final Colony colony = ColonyManager.getColony(message.colonyId);
+        final IColony colony = IColonyManager.getInstance().getColonyByDimension(message.colonyId, message.dimension);
         if (colony != null)
         {
             //Verify player has permission to change this huts settings
@@ -102,14 +109,16 @@ public class HireFireMessage extends AbstractMessage<HireFireMessage, IMessage>
                 return;
             }
 
+            final ICitizenData citizen = colony.getCitizenManager().getCitizen(message.citizenID);
+            citizen.setPaused(false);
             if (message.hire)
             {
-                final CitizenData citizen = colony.getCitizen(message.citizenID);
-                ((AbstractBuildingWorker) colony.getBuilding(message.buildingId)).setWorker(citizen);
+
+                colony.getBuildingManager().getBuilding(message.buildingId).assignCitizen(citizen);
             }
             else
             {
-                ((AbstractBuildingWorker) colony.getBuilding(message.buildingId)).setWorker(null);
+                colony.getBuildingManager().getBuilding(message.buildingId).removeCitizen(citizen);
             }
         }
     }

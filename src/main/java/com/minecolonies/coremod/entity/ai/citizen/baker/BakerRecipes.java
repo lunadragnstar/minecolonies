@@ -1,7 +1,10 @@
 package com.minecolonies.coremod.entity.ai.citizen.baker;
 
 import com.google.common.collect.ImmutableList;
-import com.minecolonies.coremod.entity.ai.util.RecipeStorage;
+import com.minecolonies.api.colony.requestsystem.StandardFactoryController;
+import com.minecolonies.api.crafting.IRecipeStorage;
+import com.minecolonies.api.util.constant.TypeConstants;
+import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 
@@ -9,12 +12,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Contains all recipes the baker can use.
+ * Contains all recipes the bakery can use.
  */
 public final class BakerRecipes
 {
     /**
-     * The grid size the baker can use.
+     * The grid size the bakery can use.
      */
     private static final int GRID_SIZE = 9;
 
@@ -22,11 +25,6 @@ public final class BakerRecipes
      * Amount of wheat required for recipe.
      */
     private static final int REQUIRED_WHEAT = 3;
-
-    /**
-     * Amount of milk buckets required for the recipe.
-     */
-    private static final int REQUIRED_MILK = 3;
 
     /**
      * Amount of sugar required for a recipe.
@@ -51,18 +49,27 @@ public final class BakerRecipes
     /**
      * List of recipes the Baker can know.
      */
-    private static final ImmutableList<RecipeStorage> recipes;
+    private static final ImmutableList<IRecipeStorage> recipes;
 
     /**
-     * Amount of buckets he should give back after a cake
+     * Amount of cookies, for more cookies, increase this value!
      */
-    private static final int BUCKET_COUNT = 3;
-
+    private static final int COOKIES = 8;
     static
     {
-        final List<ItemStack> inputCake = new ArrayList<>();
+        final List<ItemStack> inputPumpkinPie = new ArrayList<>();
+        inputPumpkinPie.add(new ItemStack(Blocks.PUMPKIN.getItemDropped(null, null, 0), 1));
+//        inputPumpkinPie.add(new ItemStack(Items.PUMPKIN_SEEDS, 4));
+        inputPumpkinPie.add(new ItemStack(Items.SUGAR, 1));
+        inputPumpkinPie.add(new ItemStack(Items.EGG, 1));
+
+    	
+    	
+    	final List<ItemStack> inputCake = new ArrayList<>();
         inputCake.add(new ItemStack(Items.WHEAT, REQUIRED_WHEAT));
-        inputCake.add(new ItemStack(Items.MILK_BUCKET, REQUIRED_MILK));
+        inputCake.add(new ItemStack(Items.MILK_BUCKET, 1));
+        inputCake.add(new ItemStack(Items.MILK_BUCKET, 1));
+        inputCake.add(new ItemStack(Items.MILK_BUCKET, 1));
         inputCake.add(new ItemStack(Items.SUGAR, REQUIRED_SUGAR));
         inputCake.add(new ItemStack(Items.EGG, REQUIRED_EGGS));
 
@@ -72,11 +79,13 @@ public final class BakerRecipes
 
         final List<ItemStack> inputBread = new ArrayList<>();
         inputBread.add(new ItemStack(Items.WHEAT, REQUIRED_WHEAT));
-
-        recipes = new ImmutableList.Builder<RecipeStorage>()
-                .add(new RecipeStorage(inputCookie, GRID_SIZE, new ItemStack(Items.COOKIE, 1)))
-                .add(new RecipeStorage(inputCake, GRID_SIZE, new ItemStack(Items.CAKE, 1), new ItemStack(Items.BUCKET, BUCKET_COUNT)))
-                .add(new RecipeStorage(inputBread, GRID_SIZE, new ItemStack(Items.BREAD, 1))).build();
+        final StandardFactoryController sfc = StandardFactoryController.getInstance();
+        recipes = new ImmutableList.Builder<IRecipeStorage>()
+                    .add(sfc.getNewInstance(TypeConstants.RECIPE, sfc.getNewInstance(TypeConstants.ITOKEN), inputCookie, GRID_SIZE, new ItemStack(Items.COOKIE, COOKIES)))
+                    .add(sfc.getNewInstance(TypeConstants.RECIPE, sfc.getNewInstance(TypeConstants.ITOKEN), inputCake, GRID_SIZE, new ItemStack(Items.CAKE)))
+                    .add(sfc.getNewInstance(TypeConstants.RECIPE, sfc.getNewInstance(TypeConstants.ITOKEN), inputBread, GRID_SIZE, new ItemStack(Items.BREAD)))
+                    .add(sfc.getNewInstance(TypeConstants.RECIPE, sfc.getNewInstance(TypeConstants.ITOKEN), inputPumpkinPie, GRID_SIZE, new ItemStack(Items.PUMPKIN_PIE)))
+                    .build();
     }
     /**
      * Private constructor to hide implicit one.
@@ -93,7 +102,7 @@ public final class BakerRecipes
      *
      * @return a copy of the recipes.
      */
-    public static List<RecipeStorage> getRecipes()
+    public static List<IRecipeStorage> getRecipes()
     {
         return recipes;
     }

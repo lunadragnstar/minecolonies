@@ -1,16 +1,15 @@
 package com.minecolonies.coremod.colony.jobs;
 
+import com.minecolonies.api.client.render.modeltype.BipedModelType;
+import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.jobs.ModJobs;
+import com.minecolonies.api.colony.jobs.registry.JobEntry;
+import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
 import com.minecolonies.coremod.achievements.ModAchievements;
-import com.minecolonies.coremod.client.render.RenderBipedCitizen;
-import com.minecolonies.coremod.colony.CitizenData;
-import com.minecolonies.coremod.entity.EntityCitizen;
 import com.minecolonies.coremod.entity.ai.basic.AbstractAISkeleton;
 import com.minecolonies.coremod.entity.ai.citizen.miner.EntityAIStructureMiner;
-import net.minecraft.item.ItemStack;
 import net.minecraft.util.DamageSource;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.List;
 
 /**
  * Class used for variables regarding his job.
@@ -22,9 +21,15 @@ public class JobMiner extends AbstractJobStructure
      *
      * @param entity the entity to add the job to.
      */
-    public JobMiner(final CitizenData entity)
+    public JobMiner(final ICitizenData entity)
     {
         super(entity);
+    }
+
+    @Override
+    public JobEntry getJobRegistryEntry()
+    {
+        return ModJobs.miner;
     }
 
     @NotNull
@@ -36,9 +41,9 @@ public class JobMiner extends AbstractJobStructure
 
     @NotNull
     @Override
-    public RenderBipedCitizen.Model getModel()
+    public BipedModelType getModel()
     {
-        return RenderBipedCitizen.Model.MINER;
+        return BipedModelType.MINER;
     }
 
     /**
@@ -53,38 +58,17 @@ public class JobMiner extends AbstractJobStructure
         return new EntityAIStructureMiner(this);
     }
 
-    /**
-     * Adds items if job requires items not in inventory.
-     *
-     * @param stack Stack to check if it is a required item.
-     */
-    public void addItemNeededIfNotAlready(@NotNull final ItemStack stack)
-    {
-        final List<ItemStack> itemsNeeded = super.getItemsNeeded();
-
-        //check if stack is already in itemsNeeded
-        for (final ItemStack neededItem : itemsNeeded)
-        {
-            if (stack.isItemEqual(neededItem))
-            {
-                return;
-            }
-        }
-        addItemNeeded(stack);
-    }
-
     @Override
-    public void triggerDeathAchievement(final DamageSource source, final EntityCitizen citizen)
+    public void triggerDeathAchievement(final DamageSource source, final AbstractEntityCitizen citizen)
     {
         super.triggerDeathAchievement(source, citizen);
         if (source == DamageSource.LAVA || source == DamageSource.IN_FIRE || source == DamageSource.ON_FIRE)
         {
-            citizen.getColony().triggerAchievement(ModAchievements.achievementMinerDeathLava);
+            citizen.getCitizenColonyHandler().getColony().getStatsManager().triggerAchievement(ModAchievements.achievementMinerDeathLava);
         }
         if (source.equals(DamageSource.FALL))
         {
-            citizen.getColony().triggerAchievement(ModAchievements.achievementMinerDeathFall);
+            citizen.getCitizenColonyHandler().getColony().getStatsManager().triggerAchievement(ModAchievements.achievementMinerDeathFall);
         }
     }
-
 }

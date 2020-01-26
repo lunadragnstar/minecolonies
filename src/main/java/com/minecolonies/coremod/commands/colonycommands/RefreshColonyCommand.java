@@ -1,12 +1,13 @@
 package com.minecolonies.coremod.commands.colonycommands;
 
-import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.IColony;
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.IColonyManager;
 import com.minecolonies.coremod.commands.AbstractSingleCommand;
-import com.mojang.authlib.GameProfile;
+import com.minecolonies.coremod.commands.ActionMenuState;
+import com.minecolonies.coremod.commands.IActionCommand;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
@@ -21,12 +22,21 @@ import java.util.UUID;
 /**
  * List all colonies.
  */
-public class RefreshColonyCommand extends AbstractSingleCommand
+public class RefreshColonyCommand extends AbstractSingleCommand implements IActionCommand
 {
-    public static final  String DESC                       = "refresh";
-    private static final String NO_COLONY_FOUND_MESSAGE_ID = "Colony with ID %d not found.";
-    private static final String NO_COLONY_FOUND_MESSAGE    = "Colony with mayor %s not found.";
-    private static final String REFRESH                    = "Refresh succesful!";
+    public static final  String DESC                                = "refresh";
+    private static final String NO_COLONY_WITH_ID_FOUND_MESSAGE     = "Colony with ID %d not found.";
+    private static final String NO_COLONY_FOUND_MESSAGE             = "Colony not found.";
+    private static final String NO_COLONY_WITH_PLAYER_FOUND_MESSAGE = "Colony with mayor %s not found.";
+    private static final String REFRESH                             = "Refresh successful!";
+
+    /**
+     * no-args constructor called by new CommandEntryPoint executer.
+     */
+    public RefreshColonyCommand()
+    {
+        super();
+    }
 
     /**
      * Initialize this SubCommand with it's parents.
@@ -46,35 +56,74 @@ public class RefreshColonyCommand extends AbstractSingleCommand
     }
 
     @Override
-    public void execute(@NotNull final MinecraftServer server, @NotNull final ICommandSender sender, @NotNull final String... args) throws CommandException
+    public void execute(@NotNull final MinecraftServer server, @NotNull final ICommandSender sender, @NotNull final ActionMenuState actionMenuState) throws CommandException
     {
-        int colonyId;
-        colonyId = getIthArgument(args, 0, -1);
-        IColony tempColony = ColonyManager.getColony(colonyId);
-
-        if(colonyId == -1 && args.length >= 1)
+        IColony colony = actionMenuState.getColonyForArgument("colony");
+        if (null == colony)
         {
-            final EntityPlayer player = server.getEntityWorld().getPlayerEntityByName(args[0]);
-            if(player != null)
+            final EntityPlayer player = actionMenuState.getPlayerForArgument("player");
+            if (null != player)
             {
-                tempColony = ColonyManager.getIColonyByOwner(server.getEntityWorld(), player);
+                IColony iColony = IColonyManager.getInstance().getIColonyByOwner(server.getEntityWorld(), player);
+                if (null == iColony)
+                {
+                    if (sender instanceof EntityPlayer)
+                    {
+                        final Entity senderEntity = sender.getCommandSenderEntity();
+                        if (senderEntity != null)
+                        {
+                            final UUID mayorID = senderEntity.getUniqueID();
+                            iColony = IColonyManager.getInstance().getIColonyByOwner(sender.getEntityWorld(), mayorID);
+                        }
+                    }
+                }
+
+                if (null != iColony)
+                {
+                    colony = IColonyManager.getInstance().getColonyByWorld(iColony.getID(), server.getWorld(sender.getEntityWorld().provider.getDimension()));
+                }
             }
         }
 
-        if(sender instanceof EntityPlayer)
+        if (colony == null)
         {
-            final UUID mayorID = sender.getCommandSenderEntity().getUniqueID();
-            if (tempColony == null)
+            sender.sendMessage(new TextComponentString(NO_COLONY_FOUND_MESSAGE));
+            return;
+        }
+
+        executeShared(server, sender, colony);
+    }
+
+    @Override
+    public void execute(@NotNull final MinecraftServer server, @NotNull final ICommandSender sender, @NotNull final String... args) throws CommandException
+    {
+        final int colonyId;
+        final int dimensionId;
+        colonyId = getColonyIdFromArg(args, 0, -1);
+        dimensionId = getDimensionIdFromArg(args, 0, sender.getEntityWorld().provider.getDimension());
+        IColony tempColony = IColonyManager.getInstance().getColonyByWorld(colonyId, server.getWorld(dimensionId));
+
+        if (colonyId == -1 && args.length >= 1)
+        {
+            final EntityPlayer player = server.getEntityWorld().getPlayerEntityByName(args[0]);
+            if (player != null)
             {
-                tempColony = ColonyManager.getIColonyByOwner(sender.getEntityWorld(), mayorID);
+                tempColony = IColonyManager.getInstance().getIColonyByOwner(server.getEntityWorld(), player);
+            }
+        }
+
+        if (sender instanceof EntityPlayer)
+        {
+            final Entity senderEntity = sender.getCommandSenderEntity();
+            if (senderEntity == null)
+            {
+                return;
             }
 
-            final EntityPlayer player = (EntityPlayer) sender;
-
-            if (!canPlayerUseCommand(player, Commands.REFRESH_COLONY, colonyId))
+            final UUID mayorID = senderEntity.getUniqueID();
+            if (tempColony == null)
             {
-                sender.getCommandSenderEntity().sendMessage(new TextComponentString(NOT_PERMITTED));
-                return;
+                tempColony = IColonyManager.getInstance().getIColonyByOwner(server.getWorld(dimensionId), mayorID);
             }
         }
 
@@ -82,39 +131,40 @@ public class RefreshColonyCommand extends AbstractSingleCommand
         {
             if (colonyId == -1 && args.length != 0)
             {
-                sender.sendMessage(new TextComponentString(String.format(NO_COLONY_FOUND_MESSAGE, args[0])));
+                sender.sendMessage(new TextComponentString(String.format(NO_COLONY_WITH_PLAYER_FOUND_MESSAGE, args[0])));
             }
             else
             {
-                sender.sendMessage(new TextComponentString(String.format(NO_COLONY_FOUND_MESSAGE_ID, colonyId)));
+                sender.sendMessage(new TextComponentString(String.format(NO_COLONY_WITH_ID_FOUND_MESSAGE, colonyId)));
             }
             return;
         }
 
-        final Colony colony = ColonyManager.getColony(tempColony.getID());
-        if(colony == null)
+        final IColony colony = IColonyManager.getInstance().getColonyByWorld(tempColony.getID(), server.getWorld(dimensionId));
+        if (colony == null)
         {
-            sender.getCommandSenderEntity().sendMessage(new TextComponentString(NO_COLONY_FOUND_MESSAGE_ID));
+            sender.sendMessage(new TextComponentString(NO_COLONY_FOUND_MESSAGE));
             return;
         }
 
-        sender.getCommandSenderEntity().sendMessage(new TextComponentString(REFRESH));
-        colony.getPermissions().restoreOwnerIfNull();
+        executeShared(server, sender, colony);
     }
 
-    @NotNull
-    private static UUID getUUIDFromName(@NotNull final ICommandSender sender, @NotNull final String... args)
+    private void executeShared(@NotNull final MinecraftServer server, @NotNull final ICommandSender sender, @NotNull final IColony colony)
     {
-        final MinecraftServer tempServer = sender.getEntityWorld().getMinecraftServer();
-        if (tempServer != null)
+        if (sender instanceof EntityPlayer)
         {
-            final GameProfile profile = tempServer.getPlayerProfileCache().getGameProfileForUsername(args[0]);
-            if (profile != null)
+            final EntityPlayer senderPlayer = (EntityPlayer) sender.getCommandSenderEntity();
+            if (!canPlayerUseCommand(senderPlayer, Commands.REFRESH_COLONY, colony.getID()))
             {
-                return profile.getId();
+                sender.sendMessage(new TextComponentString(NOT_PERMITTED));
+                return;
             }
         }
-        return null;
+
+        sender.sendMessage(new TextComponentString(REFRESH));
+        colony.getPermissions().restoreOwnerIfNull();
+        colony.markDirty();
     }
 
     @NotNull

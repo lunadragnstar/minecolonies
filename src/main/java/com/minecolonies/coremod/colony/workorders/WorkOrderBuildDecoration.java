@@ -1,18 +1,25 @@
 package com.minecolonies.coremod.colony.workorders;
 
-import com.minecolonies.api.util.BlockPosUtil;
+import com.ldtteam.structurize.management.StructureName;
+import com.ldtteam.structurize.management.Structures;
+import com.minecolonies.api.advancements.AdvancementTriggers;
+import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.workorders.IWorkManager;
+import com.minecolonies.api.colony.workorders.WorkOrderType;
+import com.minecolonies.api.util.AdvancementUtils;
 import com.minecolonies.api.util.LanguageHandler;
 import com.minecolonies.api.util.Log;
-import com.minecolonies.coremod.colony.CitizenData;
 import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.Structures;
-import com.minecolonies.coremod.colony.jobs.JobBuilder;
 import com.minecolonies.coremod.entity.ai.citizen.builder.ConstructionTapeHelper;
+import com.minecolonies.coremod.tileentities.TileEntityDecorationController;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
 
+import static com.minecolonies.api.util.constant.NbtTagConstants.TAG_LEVEL;
 import static com.minecolonies.api.util.constant.Suppression.UNUSED_METHOD_PARAMETERS_SHOULD_BE_REMOVED;
 
 /**
@@ -20,7 +27,9 @@ import static com.minecolonies.api.util.constant.Suppression.UNUSED_METHOD_PARAM
  */
 public class WorkOrderBuildDecoration extends AbstractWorkOrder
 {
-    private static final String TAG_BUILDING       = "building";
+    /**
+     * NBT Tags for storage.
+     */
     private static final String TAG_WORKORDER_NAME = "workOrderName";
     private static final String TAG_IS_CLEARED     = "cleared";
     private static final String TAG_IS_REQUESTED   = "requested";
@@ -29,17 +38,18 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
     private static final String TAG_SCHEMATIC_NAME    = "structureName";
     private static final String TAG_SCHEMATIC_MD5     = "schematicMD5";
     private static final String TAG_BUILDING_ROTATION = "buildingRotation";
+    private static final String TAG_AMOUNT_OF_RES     = "resQuantity";
 
-    protected boolean  isMirrored;
-    protected BlockPos buildingLocation;
+    protected boolean  isBuildingMirrored;
     protected int      buildingRotation;
     protected String   structureName;
     protected String   md5;
     protected boolean  cleared;
     protected String   workOrderName;
-
+    protected int      amountOfRes;
+    protected boolean levelUp = false;
     protected boolean hasSentMessageForThisWorkOrder = false;
-    private boolean requested;
+    private   boolean requested;
 
     /**
      * Unused constructor for reflection.
@@ -52,24 +62,32 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
     /**
      * Create a new work order telling the building to build a decoration.
      *
-     * @param structureName  The name of the decoration.
-     * @param workOrderName  The user friendly name of the decoration.
-     * @param rotation       The number of times the decoration was rotated.
-     * @param location       The location where the decoration should be built.
-     * @param mirror         Is the decoration mirrored?
+     * @param structureName The name of the decoration.
+     * @param workOrderName The user friendly name of the decoration.
+     * @param rotation      The number of times the decoration was rotated.
+     * @param location      The location where the decoration should be built.
+     * @param mirror        Is the decoration mirrored?
      */
     public WorkOrderBuildDecoration(final String structureName, final String workOrderName, final int rotation, final BlockPos location, final boolean mirror)
     {
         super();
         //normalise structure name
-        final Structures.StructureName sn = new Structures.StructureName(structureName);
+        final StructureName sn = new StructureName(structureName);
         this.structureName = sn.toString();
         this.workOrderName = workOrderName;
         this.buildingRotation = rotation;
         this.buildingLocation = location;
         this.cleared = false;
-        this.isMirrored = mirror;
+        this.isBuildingMirrored = mirror;
         this.requested = false;
+    }
+
+    /**
+     * Make a decoration level up with this.
+     */
+    public void setLevelUp()
+    {
+        this.levelUp = true;
     }
 
     /**
@@ -88,11 +106,10 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
      * @param compound NBT Tag compound.
      */
     @Override
-    public void readFromNBT(@NotNull final NBTTagCompound compound)
+    public void readFromNBT(@NotNull final NBTTagCompound compound, final IWorkManager manager)
     {
-        super.readFromNBT(compound);
-        buildingLocation = BlockPosUtil.readFromNBT(compound, TAG_BUILDING);
-        final Structures.StructureName sn = new Structures.StructureName(compound.getString(TAG_SCHEMATIC_NAME));
+        super.readFromNBT(compound, manager);
+        final StructureName sn = new StructureName(compound.getString(TAG_SCHEMATIC_NAME));
         structureName = sn.toString();
         workOrderName = compound.getString(TAG_WORKORDER_NAME);
         cleared = compound.getBoolean(TAG_IS_CLEARED);
@@ -100,7 +117,7 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
         if (!Structures.hasMD5(structureName))
         {
             // If the schematic move we can use the MD5 hash to find it
-            final Structures.StructureName newSN = Structures.getStructureNameByMD5(md5);
+            final StructureName newSN = Structures.getStructureNameByMD5(md5);
             if (newSN == null)
             {
                 Log.getLogger().error("WorkOrderBuildDecoration.readFromNBT: Could not find " + structureName);
@@ -109,13 +126,14 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
             {
                 Log.getLogger().warn("WorkOrderBuildDecoration.readFromNBT: replace " + sn + " by " + newSN);
                 structureName = newSN.toString();
-
             }
         }
 
         buildingRotation = compound.getInteger(TAG_BUILDING_ROTATION);
         requested = compound.getBoolean(TAG_IS_REQUESTED);
-        isMirrored = compound.getBoolean(TAG_IS_MIRRORED);
+        isBuildingMirrored = compound.getBoolean(TAG_IS_MIRRORED);
+        amountOfRes = compound.getInteger(TAG_AMOUNT_OF_RES);
+        levelUp = compound.getBoolean(TAG_LEVEL);
     }
 
     /**
@@ -127,7 +145,6 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
     public void writeToNBT(@NotNull final NBTTagCompound compound)
     {
         super.writeToNBT(compound);
-        BlockPosUtil.writeToNBT(compound, TAG_BUILDING, buildingLocation);
         if (workOrderName != null)
         {
             compound.setString(TAG_WORKORDER_NAME, workOrderName);
@@ -147,97 +164,55 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
         }
         compound.setInteger(TAG_BUILDING_ROTATION, buildingRotation);
         compound.setBoolean(TAG_IS_REQUESTED, requested);
-        compound.setBoolean(TAG_IS_MIRRORED, isMirrored);
+        compound.setBoolean(TAG_IS_MIRRORED, isBuildingMirrored);
+        compound.setInteger(TAG_AMOUNT_OF_RES, amountOfRes);
+        compound.setBoolean(TAG_LEVEL, levelUp);
+    }
+
+    @Override
+    public boolean isValid(final IColony colony)
+    {
+        return true;
     }
 
     /**
-     * Attempt to fulfill the Work Order.
-     * Override this with an implementation for the Work Order to find a Citizen to perform the job
+     * Checks if a builder may accept this workOrder.
      * <p>
-     * finds the first suitable builder for this job.
+     * Suppressing Sonar Rule squid:S1172
+     * This rule does "Unused method parameters should be removed"
+     * But in this case extending class may need to use the citizen parameter
      *
-     * @param colony The colony that owns the Work Order.
+     * @param citizen which could build it or not
+     * @return true if he is able to.
      */
-    @Override
-    public void attemptToFulfill(@NotNull final Colony colony)
+    @SuppressWarnings(UNUSED_METHOD_PARAMETERS_SHOULD_BE_REMOVED)
+    protected boolean canBuild(@NotNull final ICitizenData citizen)
     {
-        boolean sendMessage = true;
-        boolean hasBuilder = false;
-
-        for (@NotNull final CitizenData citizen : colony.getCitizens().values())
-        {
-            final JobBuilder job = citizen.getJob(JobBuilder.class);
-
-            if (job == null || citizen.getWorkBuilding() == null)
-            {
-                continue;
-            }
-
-            hasBuilder = true;
-
-            // don't send a message if we have a valid worker that is busy.
-            if (canBuild(citizen))
-            {
-                sendMessage = false;
-            }
-
-            if (!job.hasWorkOrder() && canBuild(citizen))
-            {
-                job.setWorkOrder(this);
-                this.setClaimedBy(citizen);
-                return;
-            }
-        }
-
-        sendBuilderMessage(colony, hasBuilder, sendMessage);
+        return true;
     }
 
     /**
      * send a message from the builder.
-     *
+     * <p>
      * Suppressing Sonar Rule squid:S1172
      * This rule does "Unused method parameters should be removed"
      * But in this case extending class may need to use the sendMessage parameter
-     * @param colony which the work order belong to
-     * @param hasBuilder true if we have a builder for this work order
+     *
+     * @param colony      which the work order belong to
+     * @param hasBuilder  true if we have a builder for this work order
      * @param sendMessage true if we need to send the message
      */
     @SuppressWarnings(UNUSED_METHOD_PARAMETERS_SHOULD_BE_REMOVED)
     protected void sendBuilderMessage(@NotNull final Colony colony, final boolean hasBuilder, final boolean sendMessage)
     {
-        if (hasSentMessageForThisWorkOrder)
+        if (hasSentMessageForThisWorkOrder || hasBuilder)
         {
             return;
         }
 
-        if (!hasBuilder)
-        {
-            hasSentMessageForThisWorkOrder = true;
-            LanguageHandler.sendPlayersMessage(colony.getMessageEntityPlayers(),
-              "entity.builder.messageNoBuilder");
-        }
-    }
-
-    /**
-     * Checks if a builder may accept this workOrder.
-     *
-     * Suppressing Sonar Rule squid:S1172
-     * This rule does "Unused method parameters should be removed"
-     * But in this case extending class may need to use the citizen parameter
-     * @param citizen which could build it or not
-     * @return true if he is able to.
-     */
-    @SuppressWarnings(UNUSED_METHOD_PARAMETERS_SHOULD_BE_REMOVED)
-    protected boolean canBuild(@NotNull final CitizenData citizen)
-    {
-        return true;
-    }
-
-
-    @Override
-    public boolean isValid(final Colony colony)
-    {
-        return true;
+        hasSentMessageForThisWorkOrder = true;
+        LanguageHandler.sendPlayersMessage(colony.getMessageEntityPlayers(),
+          "entity.builder.messageNoBuilder");
     }
 
     @NotNull
@@ -247,11 +222,55 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
         return WorkOrderType.BUILD;
     }
 
-
     @Override
     protected String getValue()
     {
         return workOrderName;
+    }
+
+    @Override
+    public void onAdded(final IColony colony, final boolean readingFromNbt)
+    {
+        super.onAdded(colony, readingFromNbt);
+        if (!readingFromNbt && colony != null && colony.getWorld() != null)
+        {
+            ConstructionTapeHelper.placeConstructionTape(this, colony.getWorld());
+        }
+    }
+
+    @Override
+    public void onCompleted(final IColony colony)
+    {
+        super.onCompleted(colony);
+
+        final StructureName structureName = new StructureName(getStructureName());
+        if (this instanceof WorkOrderBuildBuilding)
+        {
+            final int level = ((WorkOrderBuildBuilding) this).getUpgradeLevel();
+            AdvancementUtils.TriggerAdvancementPlayersForColony(colony, player ->
+                    AdvancementTriggers.COMPLETE_BUILD_REQUEST.trigger(player, structureName, level));
+        }
+        else
+        {
+            AdvancementUtils.TriggerAdvancementPlayersForColony(colony, player ->
+                    AdvancementTriggers.COMPLETE_BUILD_REQUEST.trigger(player, structureName, 0));
+        }
+
+        if (this.levelUp)
+        {
+            final TileEntity tileEntity = colony.getWorld().getTileEntity(buildingLocation);
+            if (tileEntity instanceof TileEntityDecorationController)
+            {
+                ((TileEntityDecorationController) tileEntity).setLevel(((TileEntityDecorationController) tileEntity).getLevel() + 1);
+            }
+        }
+    }
+
+    @Override
+    public void onRemoved(final IColony colony)
+    {
+        super.onRemoved(colony);
+        ConstructionTapeHelper.removeConstructionTape(this, colony.getWorld());
     }
 
     /**
@@ -276,10 +295,11 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
 
     /**
      * Gets how many times this structure should be rotated.
-     *
+     * <p>
      * Suppressing Sonar Rule squid:S1172
      * This rule does "Unused method parameters should be removed"
      * But in this case extending class may need to use the world parameter
+     *
      * @param world where the decoration is
      * @return building rotation.
      */
@@ -319,7 +339,6 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
         return requested;
     }
 
-
     /**
      * Set whether or not the building materials have been requested already.
      *
@@ -337,24 +356,24 @@ public class WorkOrderBuildDecoration extends AbstractWorkOrder
      */
     public boolean isMirrored()
     {
-        return isMirrored;
+        return isBuildingMirrored;
     }
 
-    @Override
-    public void onAdded(final Colony colony)
+    /**
+     * Set the amount of resources this building requires.
+     * @param amountOfRes the amount.
+     */
+    public void setAmountOfRes(final int amountOfRes)
     {
-        super.onAdded(colony);
-        if (colony != null && colony.getWorld() != null)
-        {
-            ConstructionTapeHelper.placeConstructionTape(this, colony.getWorld());
-        }
+        this.amountOfRes = amountOfRes;
     }
 
-    @Override
-    public void onRemoved(final Colony colony)
+    /**
+     * Amount of resources this building requires.
+     * @return the amount.
+     */
+    public int getAmountOfRes()
     {
-        super.onRemoved(colony);
-        ConstructionTapeHelper.removeConstructionTape(this, colony.getWorld());
+        return amountOfRes;
     }
-
 }

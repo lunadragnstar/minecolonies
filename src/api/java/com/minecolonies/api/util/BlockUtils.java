@@ -2,7 +2,6 @@ package com.minecolonies.api.util;
 
 import com.minecolonies.api.entity.ai.citizen.builder.IBuilderUndestroyable;
 import net.minecraft.block.*;
-import net.minecraft.block.material.Material;
 import net.minecraft.block.properties.PropertyBool;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.init.Blocks;
@@ -12,7 +11,10 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.Rotation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraftforge.fml.common.registry.GameData;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.FluidUtil;
+import net.minecraftforge.fluids.IFluidBlock;
+import net.minecraftforge.registries.GameData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -85,6 +87,10 @@ public final class BlockUtils
     public static IBlockState getSubstitutionBlockAtWorld(@NotNull final World world, @NotNull final BlockPos location)
     {
         final IBlockState filler = world.getBiome(location).fillerBlock;
+        if (filler.getBlock() == Blocks.SAND)
+        {
+            return Blocks.SANDSTONE.getDefaultState();
+        }
         if (filler.getBlock() instanceof BlockFalling)
         {
             return Blocks.DIRT.getDefaultState();
@@ -191,7 +197,7 @@ public final class BlockUtils
 
     private static Item getItem(@NotNull final IBlockState blockState)
     {
-        if (blockState.getMaterial().equals(Material.LAVA))
+        if (blockState.getBlock().equals(Blocks.LAVA))
         {
             return Items.LAVA_BUCKET;
         }
@@ -250,7 +256,7 @@ public final class BlockUtils
         {
             return Item.getItemFromBlock(Blocks.DIRT);
         }
-        else if(blockState.getBlock() instanceof BlockFire)
+        else if (blockState.getBlock() instanceof BlockFire)
         {
             return Items.FLINT_AND_STEEL;
         }
@@ -355,6 +361,10 @@ public final class BlockUtils
      */
     public static ItemStack getItemStackFromBlockState(@NotNull final IBlockState blockState)
     {
+        if(blockState.getBlock() instanceof IFluidBlock)
+        {
+            return FluidUtil.getFilledBucket(new FluidStack(((IFluidBlock) blockState.getBlock()).getFluid(), 1000));
+        }
         final Item item = getItem(blockState);
 
         if (item == null)
@@ -369,35 +379,6 @@ public final class BlockUtils
         }
 
         return new ItemStack(item, 1, getDamageValue(block, blockState));
-    }
-
-    /**
-     * Compares two blocks and checks if they are equally dirt.
-     * Meaning dirt and grass are equal. But podzol and coarse dirt not.
-     *
-     * @param structureBlock the block of the structure.
-     * @param worldBlock the world block.
-     * @param structureMetaData the structure metadata.
-     * @param worldMetadata the world metadata.
-     * @return true if equal.
-     */
-    public static boolean isGrassOrDirt(@NotNull final Block structureBlock, @NotNull final Block worldBlock,
-            @NotNull final IBlockState structureMetaData, @NotNull final IBlockState worldMetadata)
-    {
-        if((structureBlock == Blocks.DIRT || structureBlock == Blocks.GRASS) && (worldBlock == Blocks.DIRT || worldBlock == Blocks.GRASS))
-        {
-            if(structureBlock == Blocks.DIRT
-                    && (structureMetaData.getValue(BlockDirt.VARIANT) == BlockDirt.DirtType.COARSE_DIRT
-                    || structureMetaData.getValue(BlockDirt.VARIANT) == BlockDirt.DirtType.PODZOL))
-            {
-                return false;
-            }
-
-            return worldBlock != Blocks.DIRT
-                    || (worldMetadata.getValue(BlockDirt.VARIANT) != BlockDirt.DirtType.COARSE_DIRT
-                    && worldMetadata.getValue(BlockDirt.VARIANT) != BlockDirt.DirtType.PODZOL);
-        }
-        return  false;
     }
 
     /**
@@ -454,6 +435,36 @@ public final class BlockUtils
             //todo farmland doesn't have damage at all, sucker!
             return block.damageDropped(blockState);
         }
+    }
+
+    /**
+     * Compares two blocks and checks if they are equally dirt.
+     * Meaning dirt and grass are equal. But podzol and coarse dirt not.
+     *
+     * @param structureBlock    the block of the structure.
+     * @param worldBlock        the world block.
+     * @param structureMetaData the structure metadata.
+     * @param worldMetadata     the world metadata.
+     * @return true if equal.
+     */
+    public static boolean isGrassOrDirt(
+                                         @NotNull final Block structureBlock, @NotNull final Block worldBlock,
+                                         @NotNull final IBlockState structureMetaData, @NotNull final IBlockState worldMetadata)
+    {
+        if ((structureBlock == Blocks.DIRT || structureBlock == Blocks.GRASS) && (worldBlock == Blocks.DIRT || worldBlock == Blocks.GRASS))
+        {
+            if (structureBlock == Blocks.DIRT
+                  && (structureMetaData.getValue(BlockDirt.VARIANT) == BlockDirt.DirtType.COARSE_DIRT
+                        || structureMetaData.getValue(BlockDirt.VARIANT) == BlockDirt.DirtType.PODZOL))
+            {
+                return false;
+            }
+
+            return worldBlock != Blocks.DIRT
+                     || (worldMetadata.getValue(BlockDirt.VARIANT) != BlockDirt.DirtType.COARSE_DIRT
+                           && worldMetadata.getValue(BlockDirt.VARIANT) != BlockDirt.DirtType.PODZOL);
+        }
+        return false;
     }
 
     /**

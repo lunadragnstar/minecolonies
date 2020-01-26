@@ -1,46 +1,58 @@
 package com.minecolonies.coremod.entity.ai.citizen.deliveryman;
 
-import com.minecolonies.api.util.constant.IToolType;
-import com.minecolonies.api.util.constant.ToolType;
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.buildings.IBuilding;
+import com.minecolonies.api.colony.buildings.IBuildingContainer;
+import com.minecolonies.api.colony.buildings.IBuildingWorker;
+import com.minecolonies.api.colony.buildings.workerbuildings.IBuildingDeliveryman;
+import com.minecolonies.api.colony.buildings.workerbuildings.IWareHouse;
+import com.minecolonies.api.colony.interactionhandling.ChatPriority;
+import com.minecolonies.api.colony.interactionhandling.TranslationTextComponent;
+import com.minecolonies.api.colony.requestsystem.location.ILocation;
+import com.minecolonies.api.colony.requestsystem.request.IRequest;
+import com.minecolonies.api.colony.requestsystem.requestable.Delivery;
+import com.minecolonies.api.configuration.Configurations;
+import com.minecolonies.api.crafting.ItemStorage;
+import com.minecolonies.api.entity.ai.statemachine.AITarget;
+import com.minecolonies.api.entity.ai.statemachine.states.IAIState;
+import com.minecolonies.api.tileentities.AbstractTileEntityColonyBuilding;
+import com.minecolonies.api.tileentities.TileEntityColonyBuilding;
+import com.minecolonies.api.util.InventoryFunctions;
 import com.minecolonies.api.util.InventoryUtils;
-import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.buildings.*;
+import com.minecolonies.api.util.ItemStackUtils;
+import com.minecolonies.blockout.Log;
+import com.minecolonies.coremod.colony.buildings.AbstractBuildingWorker;
+import com.minecolonies.coremod.colony.buildings.workerbuildings.BuildingCook;
+import com.minecolonies.coremod.colony.buildings.workerbuildings.BuildingDeliveryman;
+import com.minecolonies.coremod.colony.interactionhandling.PosBasedInteractionResponseHandler;
+import com.minecolonies.coremod.colony.interactionhandling.StandardInteractionResponseHandler;
 import com.minecolonies.coremod.colony.jobs.JobDeliveryman;
-import com.minecolonies.coremod.entity.EntityCitizen;
 import com.minecolonies.coremod.entity.ai.basic.AbstractEntityAIInteract;
-import com.minecolonies.coremod.entity.ai.item.handling.ItemStorage;
-import com.minecolonies.coremod.entity.ai.util.AIState;
-import com.minecolonies.coremod.entity.ai.util.AITarget;
-import com.minecolonies.coremod.tileentities.TileEntityColonyBuilding;
-import com.minecolonies.api.util.*;
 import net.minecraft.item.ItemFood;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.tileentity.TileEntityChest;
+import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentString;
-import net.minecraftforge.items.CapabilityItemHandler;
+import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.wrapper.InvWrapper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
-import static com.minecolonies.coremod.entity.ai.util.AIState.*;
-import static com.minecolonies.api.util.constant.ToolLevelConstants.TOOL_LEVEL_WOOD_OR_GOLD;
-import static com.minecolonies.api.util.constant.TranslationConstants.COM_MINECOLONIES_COREMOD_JOB_DELIVERYMAN_CHESTFULL;
-import static com.minecolonies.api.util.constant.TranslationConstants.COM_MINECOLONIES_COREMOD_JOB_DELIVERYMAN_NAMEDCHESTFULL;
-import static com.minecolonies.api.util.constant.TranslationConstants.COM_MINECOLONIES_COREMOD_JOB_DELIVERYMAN_NOWAREHOUSE;
-
+import static com.minecolonies.api.entity.ai.statemachine.states.AIWorkerState.*;
+import static com.minecolonies.api.util.constant.Constants.TICKS_SECOND;
+import static com.minecolonies.api.util.constant.TranslationConstants.*;
+import static net.minecraftforge.items.CapabilityItemHandler.ITEM_HANDLER_CAPABILITY;
 
 /**
- * Performs deliveryman work.
- * Created: July 18, 2014
- *
- * @author MrIbby
+ * Delivers item at needs.
  */
 public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliveryman>
 {
@@ -50,39 +62,39 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
     private static final int MIN_DISTANCE_TO_WAREHOUSE = 5;
 
     /**
-     * Walking speed double at this level.
-     */
-    private static final double WALKING_SPEED_MULTIPLIER = 25;
-
-    /**
-     * Min distance to chest to take something out of it.
-     */
-    private static final int MIN_DISTANCE_TO_CHEST = 2;
-
-    /**
-     * The base movement speed of the deliveryman.
-     */
-    private static final double BASE_MOVEMENT_SPEED = 0.2D;
-
-    /**
      * Delay in ticks between every inventory operation.
      */
-    private static final int DUMP_AND_GATHER_DELAY = 10;
+    private static final int DUMP_AND_GATHER_DELAY = 3;
 
     /**
-     * Warehouse the deliveryman is assigned to.
+     * Wait 10 seconds for the worker to gather.
      */
-    private BuildingWareHouse wareHouse = null;
+    private static final int WAIT_DELAY = TICKS_SECOND * 10;
 
     /**
-     * List of itemStacks the deliveryman will deliver to the requesting building.
+     * The inventory's slot which is held in hand.
      */
-    private List<ItemStack> itemsToDeliver = new ArrayList<>();
+    private static final int SLOT_HAND = 0;
+
+    /**
+     * The amoutn fo tries the dman has to get a random building.
+     */
+    private static final int TRIES_TO_GET_RANDOM_BUILDING = 3;
 
     /**
      * Next target the deliveryman should gather stuff at.
      */
     private BlockPos gatherTarget = null;
+
+    /**
+     * Tracks how many buildings the DMan visited to gather resources.
+     */
+    private int gatherCount = 0;
+
+    /**
+     * Tracks what the current maximal gather count is.
+     */
+    private int maximalGatherCount = -1;
 
     /**
      * Amount of stacks left to gather from the inventory at the gathering step.
@@ -95,9 +107,14 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
     private List<ItemStorage> alreadyKept = new ArrayList<>();
 
     /**
-     * The inventory's slot which is held in hand.
+     * To check if the dman gathered anything on his trip.
      */
-    private static final int SLOT_HAND = 0;
+    private boolean hasGathered = false;
+
+    /**
+     * The last delivery of the dman.
+     */
+    private ILocation lastDelivery = null;
 
     /**
      * Initialize the deliveryman and add all his tasks.
@@ -108,21 +125,25 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
     {
         super(deliveryman);
         super.registerTargets(
-          /**
+          /*
            * Check if tasks should be executed.
            */
-          new AITarget(this::checkIfExecute, IDLE),
-          new AITarget(IDLE, () -> START_WORKING),
-          new AITarget(START_WORKING, this::checkWareHouse),
-          new AITarget(PREPARE_DELIVERY, this::prepareDelivery),
-          new AITarget(GATHER_IN_WAREHOUSE, this::gatherItemsFromWareHouse),
-          new AITarget(DELIVERY, this::deliver),
-          new AITarget(GATHERING, this::gather),
-          new AITarget(DUMPING, this::dump)
+          new AITarget(IDLE, () -> START_WORKING, 1),
+          new AITarget(START_WORKING, this::checkIfExecute, this::checkWareHouse, TICKS_SECOND),
+          new AITarget(PREPARE_DELIVERY, this::prepareDelivery, 1),
+          new AITarget(DELIVERY, this::deliver, 1),
+          new AITarget(GATHERING, this::gather, STANDARD_DELAY),
+          new AITarget(DUMPING, this::dump, TICKS_SECOND)
 
         );
-        worker.setSkillModifier(2 * worker.getCitizenData().getEndurance() + worker.getCitizenData().getCharisma());
+        worker.getCitizenExperienceHandler().setSkillModifier(2 * worker.getCitizenData().getEndurance() + worker.getCitizenData().getCharisma());
         worker.setCanPickUpLoot(true);
+    }
+
+    @Override
+    public Class getExpectedBuildingClass()
+    {
+        return BuildingDeliveryman.class;
     }
 
     /**
@@ -130,10 +151,31 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      *
      * @return the next state to go to.
      */
-    public AIState gather()
+    public IAIState gather()
     {
+        if (job.getCurrentTask() != null)
+        {
+            return START_WORKING;
+        }
+
+        if (maximalGatherCount < 0)
+        {
+            maximalGatherCount = Configurations.requestSystem.minimalBuildingsToGather
+                    + worker.getRandom().nextInt(
+                            Math.max(1, Configurations.requestSystem.maximalBuildingsToGather - Configurations.requestSystem.minimalBuildingsToGather));
+        }
+
         if (gatherTarget == null)
         {
+            if (gatherCount == maximalGatherCount)
+            {
+                maximalGatherCount = Configurations.requestSystem.minimalBuildingsToGather
+                        + worker.getRandom().nextInt(
+                                Math.max(1, Configurations.requestSystem.maximalBuildingsToGather - Configurations.requestSystem.minimalBuildingsToGather));
+                gatherCount = 0;
+                return DUMPING;
+            }
+
             gatherTarget = getRandomBuilding();
         }
 
@@ -142,15 +184,17 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
             return START_WORKING;
         }
 
+        worker.getCitizenStatusHandler().setLatestStatus(new TranslationTextComponent("com.minecolonies.coremod.status.gathering"));
+
         if (!worker.isWorkerAtSiteWithMove(gatherTarget, MIN_DISTANCE_TO_WAREHOUSE))
         {
             return GATHERING;
         }
 
-        final Colony colony = getOwnBuilding().getColony();
+        final IColony colony = getOwnBuilding().getColony();
         if (colony != null)
         {
-            final AbstractBuilding building = colony.getBuilding(gatherTarget);
+            final IBuilding building = colony.getBuildingManager().getBuilding(gatherTarget);
             if (building == null)
             {
                 gatherTarget = null;
@@ -160,6 +204,29 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
             {
                 this.alreadyKept = new ArrayList<>();
                 this.currentSlot = 0;
+                building.setBeingGathered(false);
+
+                gatherCount ++;
+
+                if (hasGathered)
+                {
+                    job.setReturning(true);
+                    this.hasGathered = false;
+                }
+                else
+                {
+                    if (!building.isPriorityStatic())
+                    {
+                        building.alterPickUpPriority(-10);
+                    }
+                    if (job.getCurrentTask() == null)
+                    {
+                        gatherTarget = null;
+                        return GATHERING;
+                    }
+                }
+
+                gatherCount = 0;
                 return DUMPING;
             }
             currentSlot++;
@@ -176,23 +243,50 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
     @Nullable
     private BlockPos getRandomBuilding()
     {
-        if (worker.getColony() == null || getOwnBuilding() == null)
+        if (worker.getCitizenColonyHandler().getColony() == null || getOwnBuilding() == null)
         {
             return null;
         }
 
-        final Collection<AbstractBuilding> buildingList = worker.getColony().getBuildings().values();
+        final BlockPos pos = getWeightedRandom();
+
+        if (pos != null)
+        {
+            return pos;
+        }
+
+        IBuilding theBuilding = returnRandomBuilding();
+        for(int i = 0; i < TRIES_TO_GET_RANDOM_BUILDING; i++)
+        {
+            if(theBuilding != null && (lastDelivery == null || !theBuilding.getLocation().equals(lastDelivery)))
+            {
+                lastDelivery = null;
+                return theBuilding.getPosition();
+            }
+            theBuilding = returnRandomBuilding();
+        }
+
+        lastDelivery = null;
+        return theBuilding == null ? null : theBuilding.getPosition();
+    }
+
+    /**
+     * Calculates a random building and returns it.
+     * @return a random building.
+     */
+    private IBuilding returnRandomBuilding()
+    {
+        final Collection<IBuilding> buildingList = worker.getCitizenColonyHandler().getColony().getBuildingManager().getBuildings().values();
         final Object[] buildingArray = buildingList.toArray();
 
         final int random = worker.getRandom().nextInt(buildingArray.length);
-        final AbstractBuilding building = (AbstractBuilding) buildingArray[random];
+        final IBuilding building = (IBuilding) buildingArray[random];
 
-        if (building instanceof BuildingWareHouse || building instanceof BuildingTownHall)
+        if (!building.canBeGathered())
         {
             return null;
         }
-
-        return building.getLocation();
+        return building;
     }
 
     /**
@@ -201,24 +295,47 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      * @param building building to gather it from.
      * @return true when finished.
      */
-    private boolean gatherFromBuilding(@NotNull final AbstractBuilding building)
+    private boolean gatherFromBuilding(@NotNull final IBuilding building)
     {
-        if (currentSlot >= building.getTileEntity().getSizeInventory())
-        {
-            return true;
-        }
-
-        final ItemStack stack = building.getTileEntity().getStackInSlot(currentSlot);
-        if (workerRequiresItem(building, stack, alreadyKept)
-                || (building instanceof BuildingHome && stack.getItem() instanceof ItemFood))
+        final IItemHandler handler = building.getCapability(ITEM_HANDLER_CAPABILITY, null);
+        if (handler == null)
         {
             return false;
         }
 
-        InventoryUtils.transferItemStackIntoNextFreeSlotInItemHandlers(building.getTileEntity().getSingleChestHandler(), currentSlot, new InvWrapper(worker.getInventoryCitizen()));
+        if (currentSlot >= handler.getSlots())
+        {
+            return true;
+        }
+
+        final ItemStack stack = handler.getStackInSlot(currentSlot);
+
+        if (stack.isEmpty())
+        {
+            return false;
+        }
+
+        final int amount = workerRequiresItem(building, stack, alreadyKept);
+        if (amount <= 0
+              || (building instanceof BuildingCook
+                    && stack.getItem() instanceof ItemFood))
+        {
+            return false;
+        }
+
+        if (ItemStackUtils.isEmpty(handler.getStackInSlot(currentSlot)))
+        {
+            return false;
+        }
+
+        hasGathered = true;
+        final ItemStack activeStack = handler.extractItem(currentSlot, amount, false);
+        InventoryUtils.transferItemStackIntoNextBestSlotInItemHandler(activeStack, new InvWrapper(worker.getInventoryCitizen()));
         building.markDirty();
         setDelay(DUMP_AND_GATHER_DELAY);
-        worker.setHeldItem(SLOT_HAND);
+        worker.decreaseSaturationForContinuousAction();
+
+        worker.getCitizenItemHandler().setHeldItem(EnumHand.MAIN_HAND, SLOT_HAND);
         return false;
     }
 
@@ -234,7 +351,44 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
         {
             return false;
         }
-        return InventoryUtils.getAmountOfStacksInItemHandler(new InvWrapper(worker.getInventoryCitizen())) >= Math.pow(2, getOwnBuilding().getBuildingLevel() - 1.0D);
+        return InventoryUtils.getAmountOfStacksInItemHandler(new InvWrapper(worker.getInventoryCitizen())) >= Math.pow(2, getOwnBuilding().getBuildingLevel() - 1.0D) + 1;
+    }
+
+    private BlockPos getWeightedRandom()
+    {
+        double completeWeight = 0.0;
+        for (final IBuilding building : worker.getCitizenColonyHandler().getColony().getBuildingManager().getBuildings().values())
+        {
+            if (!building.isBeingGathered())
+            {
+                completeWeight += building.getPickUpPriority();
+            }
+        }
+        final double r = Math.random() * completeWeight;
+        double countWeight = 0.0;
+
+        final List<IBuilding> buildings = worker.getCitizenColonyHandler().getColony().getBuildingManager().getBuildings().values().stream()
+                                                   .filter(building -> building.canBeGathered() && !building.isBeingGathered())
+                                                   .collect(Collectors.toList());
+        Collections.shuffle(buildings);
+        for (final IBuilding building : buildings)
+        {
+            countWeight += building.getPickUpPriority();
+            if (countWeight >= r)
+            {
+                //Don't let any other dman pick up for now.
+                building.setBeingGathered(true);
+                return building.getID();
+            }
+            else
+            {
+                if (!building.isPriorityStatic() && worker.getRandom().nextInt(100) <= 1)
+                {
+                    building.alterPickUpPriority(1);
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -244,36 +398,11 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      * @param building         the building to check for.
      * @param stack            the stack to stack with.
      * @param localAlreadyKept already kept resources.
-     * @return true if required.
+     * @return the amount which can get dumped.
      */
-    public static boolean workerRequiresItem(final AbstractBuilding building, final ItemStack stack, final List<ItemStorage> localAlreadyKept)
+    public static int workerRequiresItem(final IBuilding building, final ItemStack stack, final List<ItemStorage> localAlreadyKept)
     {
-        return (building instanceof AbstractBuildingWorker && ((AbstractBuildingWorker) building).neededForWorker(stack))
-                 || buildingRequiresCertainAmountOfItem(building, stack, localAlreadyKept);
-    }
-
-    /**
-     * Check if the worker requires a certain amount of that item and if the deliveryman already kept it.
-     * Always leave one stack behind if the worker requires a certain amount of it. Just to be sure.
-     *
-     * @param building         the building of the worker.
-     * @param stack            the stack to check it with.
-     * @param localAlreadyKept already kept items.
-     * @return true if deliveryman should leave it behind.
-     */
-    private static boolean buildingRequiresCertainAmountOfItem(final AbstractBuilding building, final ItemStack stack, final List<ItemStorage> localAlreadyKept)
-    {
-        for (final Map.Entry<ItemStorage, Integer> entry : building.getRequiredItemsAndAmount().entrySet())
-        {
-            if (entry.getKey().getItem() == stack.getItem()
-                  && entry.getKey().getDamageValue() == stack.getItemDamage()
-                  && !localAlreadyKept.contains(entry.getKey()))
-            {
-                localAlreadyKept.add(entry.getKey());
-                return true;
-            }
-        }
-        return false;
+        return building.buildingRequiresCertainAmountOfItem(stack, localAlreadyKept, false);
     }
 
     /**
@@ -281,18 +410,41 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      *
      * @return the next state to go to.
      */
-    public AIState dump()
+    public IAIState dump()
     {
-        if (!worker.isWorkerAtSiteWithMove(wareHouse.getLocation(), MIN_DISTANCE_TO_WAREHOUSE))
+        worker.getCitizenStatusHandler().setLatestStatus(new TranslationTextComponent("com.minecolonies.coremod.status.dumping"));
+
+        if (!worker.isWorkerAtSiteWithMove(getAndCheckWarehouse().getPosition(), MIN_DISTANCE_TO_WAREHOUSE))
         {
             return DUMPING;
         }
 
-        wareHouse.getTileEntity().dumpInventoryIntoWareHouse(worker.getInventoryCitizen());
+        getAndCheckWarehouse().getTileEntity().dumpInventoryIntoWareHouse(worker.getInventoryCitizen());
         gatherTarget = null;
-        worker.setHeldItem(SLOT_HAND);
+        worker.getCitizenItemHandler().setHeldItem(EnumHand.MAIN_HAND, SLOT_HAND);
+
+
+        if (job.isReturning())
+        {
+            job.setReturning(false);
+        }
 
         return START_WORKING;
+    }
+
+    /**
+     * Gets the colony's warehouse for the Deliveryman.
+     */
+    public IWareHouse getAndCheckWarehouse()
+    {
+        for (final IWareHouse wareHouse : job.getColony().getBuildingManager().getWareHouses())
+        {
+            if (wareHouse.registerWithWareHouse(this.getOwnBuilding()))
+            {
+                return wareHouse;
+            }
+        }
+        return null;
     }
 
     /**
@@ -300,20 +452,58 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      *
      * @return the next state.
      */
-    private AIState deliver()
+    private IAIState deliver()
     {
-        final BuildingDeliveryman deliveryHut = (getOwnBuilding() instanceof BuildingDeliveryman) ? (BuildingDeliveryman) getOwnBuilding() : null;
-        final AbstractBuilding buildingToDeliver = deliveryHut==null ? null : deliveryHut.getBuildingToDeliver();
-        if (deliveryHut == null || buildingToDeliver == null)
+        if (job.isReturning())
+        {
+            return DUMPING;
+        }
+
+        final IBuildingDeliveryman deliveryHut = (getOwnBuilding() instanceof BuildingDeliveryman) ? (IBuildingDeliveryman) getOwnBuilding() : null;
+        final ILocation buildingToDeliver = deliveryHut == null ? null : deliveryHut.getBuildingToDeliver();
+
+        if (deliveryHut == null)
         {
             return START_WORKING;
         }
-
-        if (!worker.isWorkerAtSiteWithMove(buildingToDeliver.getLocation(), MIN_DISTANCE_TO_WAREHOUSE))
+        else if (buildingToDeliver == null)
         {
+            if (job.getCurrentTask() != null && deliveryHut != null)
+            {
+                final IRequest<? extends Delivery> request = job.getCurrentTask();
+                deliveryHut.setBuildingToDeliver(request.getRequest().getTarget());
+                return getState();
+            }
+            return START_WORKING;
+        }
+
+        worker.getCitizenStatusHandler().setLatestStatus(new TranslationTextComponent("com.minecolonies.coremod.status.delivering"));
+
+        if (!buildingToDeliver.isReachableFromLocation(worker.getLocation()))
+        {
+            Log.getLogger().info(worker.getCitizenColonyHandler().getColony().getName() + ": " + worker.getName() + ": Can't inter dimension yet: ");
+            return START_WORKING;
+        }
+
+        if (!worker.isWorkerAtSiteWithMove(buildingToDeliver.getInDimensionLocation(), MIN_DISTANCE_TO_WAREHOUSE))
+        {
+            setDelay(10);
             return DELIVERY;
         }
 
+        final TileEntity tileEntity = world.getTileEntity(buildingToDeliver.getInDimensionLocation());
+
+        if (!(tileEntity instanceof TileEntityColonyBuilding))
+        {
+            job.finishRequest(true);
+            return START_WORKING;
+        }
+
+        final AbstractTileEntityColonyBuilding iTileEntityColonyBuilding = (AbstractTileEntityColonyBuilding) tileEntity;
+        final IBuildingContainer building = iTileEntityColonyBuilding.getBuilding();
+
+        boolean success = true;
+        boolean extracted = false;
         final InvWrapper workerInventory = new InvWrapper(worker.getInventoryCitizen());
         for (int i = 0; i < new InvWrapper(worker.getInventoryCitizen()).getSlots(); i++)
         {
@@ -323,21 +513,32 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
                 continue;
             }
 
-            final ItemStack insertionResultStack = buildingToDeliver.forceTransferStack(stack, world);
+            extracted = true;
+            final ItemStack insertionResultStack;
+
+            if (iTileEntityColonyBuilding.getBuilding() instanceof AbstractBuildingWorker)
+            {
+                insertionResultStack = InventoryUtils.forceItemStackToItemHandler(
+                  iTileEntityColonyBuilding.getBuilding().getCapability(ITEM_HANDLER_CAPABILITY, null), stack, ((IBuildingWorker) building)::isItemStackInRequest);
+            }
+            else
+            {
+                insertionResultStack = InventoryUtils.forceItemStackToItemHandler(iTileEntityColonyBuilding.getBuilding().getCapability(ITEM_HANDLER_CAPABILITY, null), stack, itemStack -> false);
+            }
+
             if (!ItemStackUtils.isEmpty(insertionResultStack))
             {
-                if (ItemStack.areItemStacksEqual(insertionResultStack, stack))
+                success = false;
+                if (ItemStack.areItemStacksEqual(insertionResultStack, stack) && worker.getCitizenData() != null)
                 {
                     //same stack, we could not deliver ?
-                    if (buildingToDeliver instanceof AbstractBuildingWorker)
+                    if (building instanceof AbstractBuildingWorker)
                     {
-                        chatSpamFilter.talkWithoutSpam(COM_MINECOLONIES_COREMOD_JOB_DELIVERYMAN_NAMEDCHESTFULL,
-                            ((AbstractBuildingWorker)buildingToDeliver).getWorker().getName());
+                        worker.getCitizenData().triggerInteraction(new PosBasedInteractionResponseHandler(new TranslationTextComponent(COM_MINECOLONIES_COREMOD_JOB_DELIVERYMAN_NAMEDCHESTFULL, building.getMainCitizen().getName()), ChatPriority.IMPORTANT, new TranslationTextComponent(COM_MINECOLONIES_COREMOD_JOB_DELIVERYMAN_CHESTFULL), building.getID()));
                     }
-                    else
+                    else if (buildingToDeliver instanceof TileEntityColonyBuilding)
                     {
-                        chatSpamFilter.talkWithoutSpam(COM_MINECOLONIES_COREMOD_JOB_DELIVERYMAN_CHESTFULL,
-                            new TextComponentString(" :" + buildingToDeliver.getSchematicName()));
+                        worker.getCitizenData().triggerInteraction(new PosBasedInteractionResponseHandler(new TranslationTextComponent(COM_MINECOLONIES_COREMOD_JOB_DELIVERYMAN_CHESTFULL, new TextComponentString(" :" + building.getSchematicName())), ChatPriority.IMPORTANT, new TranslationTextComponent(COM_MINECOLONIES_COREMOD_JOB_DELIVERYMAN_CHESTFULL), ((TileEntityColonyBuilding) buildingToDeliver).getPos()));
                     }
                 }
 
@@ -346,18 +547,27 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
             }
         }
 
-        worker.addExperience(1.0D);
-        worker.setHeldItem(SLOT_HAND);
-        buildingToDeliver.setOnGoingDelivery(false);
-        deliveryHut.setBuildingToDeliver(null);
-
-        if(buildingToDeliver instanceof BuildingHome)
+        if (!extracted)
         {
-            ((BuildingHome) buildingToDeliver).setFoodNeeded(false);
+            lastDelivery = deliveryHut.getBuildingToDeliver();
+            worker.decreaseSaturationForContinuousAction();
+            worker.getCitizenItemHandler().setHeldItem(EnumHand.MAIN_HAND, SLOT_HAND);
+            deliveryHut.setBuildingToDeliver(null);
+            job.finishRequest(false);
+
+            setDelay(WAIT_DELAY);
+            return DUMPING;
         }
 
-        gatherTarget = buildingToDeliver.getLocation();
-        return GATHERING;
+        lastDelivery = deliveryHut.getBuildingToDeliver();
+        worker.getCitizenExperienceHandler().addExperience(1.0D);
+        worker.decreaseSaturationForContinuousAction();
+        worker.getCitizenItemHandler().setHeldItem(EnumHand.MAIN_HAND, SLOT_HAND);
+        deliveryHut.setBuildingToDeliver(null);
+        job.finishRequest(true);
+
+        setDelay(WAIT_DELAY);
+        return success ? START_WORKING : DUMPING;
     }
 
     /**
@@ -366,205 +576,100 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      *
      * @return the next state to go to.
      */
-    private AIState prepareDelivery()
+    private IAIState prepareDelivery()
     {
-        final AbstractBuildingWorker ownBuilding = getOwnBuilding();
+        final IBuildingWorker ownBuilding = getOwnBuilding();
         if (ownBuilding instanceof BuildingDeliveryman)
         {
-            final AbstractBuilding buildingToDeliver = ((BuildingDeliveryman) ownBuilding).getBuildingToDeliver();
-            if (buildingToDeliver != null)
+            final IRequest<? extends Delivery> request = job.getCurrentTask();
+            if (request != null)
             {
-                final boolean ableToDeliver = wareHouse.getTileEntity().checkInWareHouse(buildingToDeliver, false);
-
-                if (!ableToDeliver)
+                if (job.isReturning())
                 {
-                    buildingToDeliver.setOnGoingDelivery(false);
-                    return START_WORKING;
+                    return DUMPING;
                 }
-                itemsToDeliver = buildingToDeliver.getCopyOfNeededItems();
-                return GATHER_IN_WAREHOUSE;
+                ((IBuildingDeliveryman) ownBuilding).setBuildingToDeliver(request.getRequest().getTarget());
+                if (InventoryUtils.hasItemInItemHandler(new InvWrapper(worker.getInventoryCitizen()),
+                  itemStack -> request.getRequest().getStack().isItemEqualIgnoreDurability(itemStack)))
+                {
+                    return DELIVERY;
+                }
+
+                return gatherItems(request);
             }
         }
         return START_WORKING;
-    }
-
-    /**
-     * Check if food has to be delivered to a certain building.
-     *
-     * @param building building to check.
-     * @return true if so.
-     */
-    private boolean needsToDeliverFood(@NotNull final AbstractBuilding building)
-    {
-        return building instanceof BuildingHome && ((BuildingHome) building).isFoodNeeded() && !hasFood(building);
-    }
-
-    private AIState gatherItemsFromWareHouse()
-    {
-        final AbstractBuildingWorker ownBuilding = getOwnBuilding();
-        if (ownBuilding instanceof BuildingDeliveryman)
-        {
-            final AbstractBuilding buildingToDeliver = ((BuildingDeliveryman) ownBuilding).getBuildingToDeliver();
-            if (buildingToDeliver != null)
-            {
-                if (itemsToDeliver.isEmpty() && hasTools(buildingToDeliver) && !needsToDeliverFood(buildingToDeliver))
-                {
-                    ((BuildingDeliveryman) ownBuilding).setBuildingToDeliver(null);
-                    return START_WORKING;
-                }
-
-                return tryToGatherItems(buildingToDeliver);
-            }
-        }
-        return START_WORKING;
-    }
-
-    /**
-     * Check if the deliveryman has all the tools to make the delivery.
-     *
-     * @param buildingToDeliver the building to deliver to.
-     * @return true if is ready to deliver.
-     */
-    private boolean hasTools(@NotNull final AbstractBuilding buildingToDeliver)
-    {
-        final IToolType requiredTool = buildingToDeliver.getNeedsTool();
-        if (requiredTool == ToolType.NONE)
-        {
-            return true;
-        }
-
-        return InventoryUtils.isToolInItemHandler(new InvWrapper(worker.getInventoryCitizen()), requiredTool, buildingToDeliver.getNeededToolLevel(),
-                buildingToDeliver.getBuildingLevel());
-    }
-
-    /**
-     * Check if the deliveryman has all the foods to make the delivery.
-     *
-     * @param buildingToDeliver the building to deliver to.
-     * @return true if is ready to deliver.
-     */
-    private boolean hasFood(final AbstractBuilding buildingToDeliver)
-    {
-        return InventoryUtils.getItemCountInItemHandler(new InvWrapper(worker.getInventoryCitizen()),
-                stack -> !ItemStackUtils.isEmpty(stack) && stack.getItem() instanceof ItemFood) > buildingToDeliver.getBuildingLevel();
     }
 
     /**
      * Gather item from chest.
      * Gathers only one stack of the item.
      *
-     * @param buildingToDeliver building to deliver to.
+     * @param request request to gather
      */
-    private AIState tryToGatherItems(@NotNull final AbstractBuilding buildingToDeliver)
+    private IAIState gatherItems(@NotNull final IRequest<? extends Delivery> request)
     {
-        final BlockPos position;
+        final ILocation location = request.getRequest().getStart();
 
-        if (buildingToDeliver instanceof BuildingHome)
+        if (!location.isReachableFromLocation(worker.getLocation()))
         {
-            position = wareHouse.getTileEntity().getPositionOfChestWithItemStack(
-                    itemStack -> !ItemStackUtils.isEmpty(itemStack) && itemStack.getItem() instanceof ItemFood);
-        }
-        else if (itemsToDeliver.isEmpty())
-        {
-            final IToolType toolType = buildingToDeliver.getNeedsTool();
-            position = wareHouse.getTileEntity()
-                         .getPositionOfChestWithTool(toolType,
-                           buildingToDeliver.getNeededToolLevel(),
-                           buildingToDeliver);
-        }
-        else
-        {
-            final ItemStack stack = itemsToDeliver.get(0);
-            position = wareHouse.getTileEntity().getPositionOfChestWithItemStack(stack);
-        }
-
-        if (position == null)
-        {
-            ((BuildingDeliveryman) getOwnBuilding()).setBuildingToDeliver(null);
-            itemsToDeliver.clear();
+            ((IBuildingDeliveryman) getOwnBuilding()).setBuildingToDeliver(null);
+            job.finishRequest(false);
             return START_WORKING;
         }
 
-        if (!worker.isWorkerAtSiteWithMove(position, MIN_DISTANCE_TO_CHEST))
+        if (walkToBlock(location.getInDimensionLocation()))
         {
-            setDelay(DUMP_AND_GATHER_DELAY);
-            return GATHER_IN_WAREHOUSE;
+            return getState();
         }
 
-        return gatherItems(buildingToDeliver, position);
-    }
-
-    /**
-     * Gather item from chest.
-     * Gathers only one stack of the item.
-     *
-     * @param buildingToDeliver building to deliver to.
-     */
-    private AIState gatherItems(@NotNull final AbstractBuilding buildingToDeliver, @NotNull final BlockPos position)
-    {
-        final TileEntity tileEntity = world.getTileEntity(position);
-        if (tileEntity instanceof TileEntityChest)
+        final TileEntity tileEntity = world.getTileEntity(location.getInDimensionLocation());
+        if (tileEntity instanceof TileEntityChest && !(tileEntity instanceof TileEntityColonyBuilding))
         {
-            if (!(tileEntity instanceof TileEntityColonyBuilding))
+            if (((TileEntityChest) tileEntity).numPlayersUsing == 0)
             {
-                if (((TileEntityChest) tileEntity).numPlayersUsing == 0)
-                {
-                    this.world.addBlockEvent(tileEntity.getPos(), tileEntity.getBlockType(), 1, 1);
-                    this.world.notifyNeighborsOfStateChange(tileEntity.getPos(), tileEntity.getBlockType(), true);
-                    this.world.notifyNeighborsOfStateChange(tileEntity.getPos().down(), tileEntity.getBlockType(), true);
-                    setDelay(DUMP_AND_GATHER_DELAY);
-                    return GATHER_IN_WAREHOUSE;
-                }
-                this.world.addBlockEvent(tileEntity.getPos(), tileEntity.getBlockType(), 1, 0);
+                this.world.addBlockEvent(tileEntity.getPos(), tileEntity.getBlockType(), 1, 1);
                 this.world.notifyNeighborsOfStateChange(tileEntity.getPos(), tileEntity.getBlockType(), true);
                 this.world.notifyNeighborsOfStateChange(tileEntity.getPos().down(), tileEntity.getBlockType(), true);
+                setDelay(DUMP_AND_GATHER_DELAY);
+                return getState();
             }
-
-            if (buildingToDeliver instanceof BuildingHome)
-            {
-                final int extraFood = worker.getCitizenData().getSaturation() < EntityCitizen.HIGH_SATURATION ? 1 : 0;
-
-                //Tries to extract a certain amount of the item of the chest.
-                if (InventoryUtils.transferXOfFirstSlotInProviderWithIntoNextFreeSlotInItemHandler(
-                        tileEntity.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, null),
-                        itemStack -> !ItemStackUtils.isEmpty(itemStack) && itemStack.getItem() instanceof ItemFood,
-                        buildingToDeliver.getBuildingLevel() + extraFood,
-                        new InvWrapper(worker.getInventoryCitizen())))
-                {
-                    worker.setHeldItem(SLOT_HAND);
-                    setDelay(DUMP_AND_GATHER_DELAY);
-                    return DELIVERY;
-                }
-
-                ((BuildingDeliveryman) getOwnBuilding()).setBuildingToDeliver(null);
-                itemsToDeliver.clear();
-                return START_WORKING;
-            }
-            else if (itemsToDeliver.isEmpty() && !isToolInTileEntity((TileEntityChest) tileEntity, buildingToDeliver.getNeedsTool(), TOOL_LEVEL_WOOD_OR_GOLD,
-                    buildingToDeliver.getBuildingLevel()))
-            {
-                ((BuildingDeliveryman) getOwnBuilding()).setBuildingToDeliver(null);
-                itemsToDeliver.clear();
-                return START_WORKING;
-            }
-            else if (!itemsToDeliver.isEmpty())
-            {
-                final ItemStack stack = itemsToDeliver.get(0);
-                if (isInTileEntity((TileEntityChest) tileEntity, stack))
-                {
-                    itemsToDeliver.remove(0);
-                    worker.setHeldItem(SLOT_HAND);
-                    setDelay(DUMP_AND_GATHER_DELAY);
-                    return DELIVERY;
-                }
-                ((BuildingDeliveryman) getOwnBuilding()).setBuildingToDeliver(null);
-                itemsToDeliver.clear();
-                return START_WORKING;
-            }
+            this.world.addBlockEvent(tileEntity.getPos(), tileEntity.getBlockType(), 1, 0);
+            this.world.notifyNeighborsOfStateChange(tileEntity.getPos(), tileEntity.getBlockType(), true);
+            this.world.notifyNeighborsOfStateChange(tileEntity.getPos().down(), tileEntity.getBlockType(), true);
         }
 
-        setDelay(DUMP_AND_GATHER_DELAY);
-        return GATHER_IN_WAREHOUSE;
+        if (gatherIfInTileEntity(tileEntity, request.getRequest().getStack()))
+        {
+            setDelay(DUMP_AND_GATHER_DELAY);
+            return DELIVERY;
+        }
+
+        ((IBuildingDeliveryman) getOwnBuilding()).setBuildingToDeliver(null);
+        job.finishRequest(false);
+        return START_WORKING;
+    }
+
+
+    /**
+     * Finds the first @see ItemStack the type of {@code is}.
+     * It will be taken from the chest and placed in the worker inventory.
+     * Make sure that the worker stands next the chest to not break immersion.
+     * Also make sure to have inventory space for the stack.
+     *
+     * @param entity the tileEntity chest or building or rack.
+     * @param is     the itemStack.
+     * @return true if found the stack.
+     */
+    public boolean gatherIfInTileEntity(final TileEntity entity, final ItemStack is)
+    {
+        return is != null
+                 && InventoryFunctions
+                      .matchFirstInProviderWithAction(
+                        entity,
+                        stack -> !ItemStackUtils.isEmpty(stack) && ItemStackUtils.compareItemStacksIgnoreStackSize(is, stack, true, true),
+                        (provider, index) -> InventoryUtils.transferXOfItemStackIntoNextFreeSlotFromProvider(provider, index, is.getCount(), new InvWrapper(worker.getInventoryCitizen()))
+                      );
     }
 
     /**
@@ -572,24 +677,29 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      *
      * @return the next AiState to go to.
      */
-    private AIState checkWareHouse()
+    private IAIState checkWareHouse()
     {
-        if (!worker.isWorkerAtSiteWithMove(wareHouse.getLocation(), MIN_DISTANCE_TO_WAREHOUSE))
+        if (!worker.isWorkerAtSiteWithMove(getAndCheckWarehouse().getPosition(), MIN_DISTANCE_TO_WAREHOUSE))
         {
             return START_WORKING;
         }
 
-        final AbstractBuildingWorker ownBuilding = getOwnBuilding();
+        final IBuildingWorker ownBuilding = getOwnBuilding();
 
-        @Nullable final AbstractBuilding buildingToDeliver = wareHouse.getTileEntity().getTask();
-        if (ownBuilding instanceof BuildingDeliveryman)
+        //get task via colony, requestmananger
+        if (job.getCurrentTask() == null)
         {
-            if (buildingToDeliver == null)
-            {
-                ((BuildingDeliveryman) ownBuilding).setBuildingToDeliver(null);
-                return GATHERING;
-            }
-            ((BuildingDeliveryman) ownBuilding).setBuildingToDeliver(buildingToDeliver);
+            ((IBuildingDeliveryman) ownBuilding).setBuildingToDeliver(null);
+            return GATHERING;
+        }
+        else if (job.isReturning())
+        {
+            ((IBuildingDeliveryman) ownBuilding).setBuildingToDeliver(null);
+            return DUMPING;
+        }
+        else
+        {
+            ((IBuildingDeliveryman) ownBuilding).setBuildingToDeliver(job.getCurrentTask().getRequest().getTarget());
         }
 
         return PREPARE_DELIVERY;
@@ -603,32 +713,17 @@ public class EntityAIWorkDeliveryman extends AbstractEntityAIInteract<JobDeliver
      */
     private boolean checkIfExecute()
     {
-        worker.setAIMoveSpeed((float) (BASE_MOVEMENT_SPEED + BASE_MOVEMENT_SPEED * worker.getLevel() / WALKING_SPEED_MULTIPLIER));
-
-        if (wareHouse != null && wareHouse.getTileEntity() != null)
+        if ( getAndCheckWarehouse() != null && getAndCheckWarehouse().getTileEntity() != null )
         {
-            return false;
+            job.setActive(true);
+            return true;
         }
 
-        final Map<BlockPos, AbstractBuilding> buildings = job.getColony().getBuildings();
-        for (final AbstractBuilding building : buildings.values())
+        job.setActive(false);
+        if ( worker.getCitizenData() != null )
         {
-            if (building == null)
-            {
-                continue;
-            }
-
-            final Colony buildingColony = building.getColony();
-            final Colony ownColony = worker.getColony();
-            if (building instanceof BuildingWareHouse && ownColony != null && buildingColony != null && buildingColony.getID() == ownColony.getID()
-                  && ((BuildingWareHouse) building).registerWithWareHouse((BuildingDeliveryman) this.getOwnBuilding()))
-            {
-                wareHouse = (BuildingWareHouse) building;
-                return false;
-            }
+            worker.getCitizenData().triggerInteraction(new StandardInteractionResponseHandler(new TranslationTextComponent(COM_MINECOLONIES_COREMOD_JOB_DELIVERYMAN_NOWAREHOUSE), ChatPriority.BLOCKING));
         }
-
-        chatSpamFilter.talkWithoutSpam(COM_MINECOLONIES_COREMOD_JOB_DELIVERYMAN_NOWAREHOUSE);
-        return true;
+        return false;
     }
 }

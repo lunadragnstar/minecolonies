@@ -1,24 +1,37 @@
 package com.minecolonies.coremod.network.messages;
 
+import com.minecolonies.api.colony.IColonyManager;
+import com.minecolonies.coremod.MineColonies;
 import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.ColonyView;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
-import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Add or Update a ColonyView on the client.
  */
-public class ColonyViewMessage implements IMessage, IMessageHandler<ColonyViewMessage, IMessage>
+public class ColonyViewMessage extends AbstractMessage<ColonyViewMessage, IMessage>
 {
-    private int     colonyId;
+    /**
+     * The colony id.
+     */
+    private int colonyId;
+
+    /**
+     * If this is a new subscription.
+     */
     private boolean isNewSubscription;
+
+    /**
+     * The buffer with the data.
+     */
     private ByteBuf colonyBuffer;
+
+    /**
+     * The dimension of the colony.
+     */
+    private int dim;
 
     /**
      * Empty constructor used when registering the message.
@@ -32,22 +45,25 @@ public class ColonyViewMessage implements IMessage, IMessageHandler<ColonyViewMe
      * Add or Update a ColonyView on the client.
      *
      * @param colony            Colony of the view to update.
+     * @param buf               the bytebuffer.
      * @param isNewSubscription Boolean whether or not this is a new subscription.
      */
-    public ColonyViewMessage(@NotNull final Colony colony, final boolean isNewSubscription)
+    public ColonyViewMessage(@NotNull final Colony colony, final ByteBuf buf, final boolean isNewSubscription)
     {
         this.colonyId = colony.getID();
         this.isNewSubscription = isNewSubscription;
-        this.colonyBuffer = Unpooled.buffer();
-        ColonyView.serializeNetworkData(colony, colonyBuffer, isNewSubscription);
+        this.dim = colony.getDimension();
+        this.colonyBuffer = buf.copy();
     }
 
     @Override
     public void fromBytes(@NotNull final ByteBuf buf)
     {
-        colonyId = buf.readInt();
-        isNewSubscription = buf.readBoolean();
-        colonyBuffer = buf;
+        final ByteBuf newBuf = buf.retain();
+        colonyId = newBuf.readInt();
+        isNewSubscription = newBuf.readBoolean();
+        dim = newBuf.readInt();
+        colonyBuffer = newBuf;
     }
 
     @Override
@@ -55,13 +71,17 @@ public class ColonyViewMessage implements IMessage, IMessageHandler<ColonyViewMe
     {
         buf.writeInt(colonyId);
         buf.writeBoolean(isNewSubscription);
+        buf.writeInt(dim);
         buf.writeBytes(colonyBuffer);
     }
 
-    @Nullable
     @Override
-    public IMessage onMessage(@NotNull final ColonyViewMessage message, final MessageContext ctx)
+    protected void messageOnClientThread(final ColonyViewMessage message, final MessageContext ctx)
     {
-        return ColonyManager.handleColonyViewMessage(message.colonyId, message.colonyBuffer, message.isNewSubscription);
+        if (MineColonies.proxy.getWorldFromMessage(ctx) != null)
+        {
+            IColonyManager.getInstance().handleColonyViewMessage(message.colonyId, message.colonyBuffer, MineColonies.proxy.getWorldFromMessage(ctx), message.isNewSubscription, message.dim);
+            message.colonyBuffer.release();
+        }
     }
 }

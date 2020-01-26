@@ -2,17 +2,19 @@ package com.minecolonies.coremod.client.gui;
 
 import com.minecolonies.api.util.LanguageHandler;
 import com.minecolonies.api.util.constant.Constants;
+import com.minecolonies.blockout.Color;
 import com.minecolonies.blockout.Pane;
 import com.minecolonies.blockout.controls.Button;
 import com.minecolonies.blockout.controls.Label;
 import com.minecolonies.blockout.views.ScrollingList;
 import com.minecolonies.blockout.views.SwitchView;
 import com.minecolonies.coremod.MineColonies;
-import com.minecolonies.coremod.colony.buildings.BuildingMiner;
+import com.minecolonies.coremod.colony.buildings.workerbuildings.BuildingMiner;
 import com.minecolonies.coremod.network.messages.MinerSetLevelMessage;
-import org.jetbrains.annotations.NotNull;
+import net.minecraft.util.Tuple;
 
-import java.awt.*;
+import java.util.List;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Window for the miner hut.
@@ -24,14 +26,14 @@ public class WindowHutMiner extends AbstractWindowWorkerBuilding<BuildingMiner.V
     private static final String BUTTON_CURRENTLEVEL       = "changeToLevel";
     private static final String VIEW_PAGES                = "pages";
     private static final String HUT_MINER_RESOURCE_SUFFIX = ":gui/windowhutminer.xml";
-    private final BuildingMiner.View miner;
-    private       int[]              levels;
-    private       ScrollingList      levelList;
+    private final BuildingMiner.View            miner;
+    private       List<Tuple<Integer, Integer>> levelsInfo;
+    private       ScrollingList                 levelList;
 
     /**
      * Constructor for the window of the miner hut.
      *
-     * @param building {@link com.minecolonies.coremod.colony.buildings.BuildingMiner.View}.
+     * @param building {@link BuildingMiner.View}.
      */
     public WindowHutMiner(final BuildingMiner.View building)
     {
@@ -47,7 +49,7 @@ public class WindowHutMiner extends AbstractWindowWorkerBuilding<BuildingMiner.V
     {
         if (miner.getColony().getBuilding(miner.getID()) != null)
         {
-            levels = miner.levels;
+            levelsInfo = miner.levelsInfo;
         }
     }
 
@@ -61,27 +63,32 @@ public class WindowHutMiner extends AbstractWindowWorkerBuilding<BuildingMiner.V
             @Override
             public int getElementCount()
             {
-                return levels.length;
+                return levelsInfo.size();
             }
 
             @Override
             public void updateElement(final int index, @NotNull final Pane rowPane)
             {
-
                 if (index == miner.current)
                 {
-                    rowPane.findPaneOfTypeByID("lvl", Label.class).setColor(Color.RED.getRGB());
-                }
-                else
-                {
-                    rowPane.findPaneOfTypeByID("lvl", Label.class).setColor(Color.BLACK.getRGB());
+                    rowPane.findPaneOfTypeByID("lvl", Label.class).setColor(Color.getByName("red", 0));
                 }
 
                 rowPane.findPaneOfTypeByID("lvl", Label.class).setLabelText(Integer.toString(index));
                 rowPane.findPaneOfTypeByID("nONodes", Label.class)
-                  .setLabelText(LanguageHandler.format("com.minecolonies.coremod.gui.workerHuts.minerNode") + ": " + levels[index]);
+                       .setLabelText(LanguageHandler.format("com.minecolonies.coremod.gui.workerHuts.minerNode") + ": " + levelsInfo.get(index).getFirst());
+                rowPane.findPaneOfTypeByID("yLevel", Label.class)
+                       .setLabelText("Y: " + (levelsInfo.get(index).getSecond() + 1));
+                       // ^^ 1 is for Y depth fix
             }
         });
+    }
+
+    @NotNull
+    @Override
+    public String getBuildingName()
+    {
+        return "com.minecolonies.coremod.gui.workerHuts.minerHut";
     }
 
     @Override
@@ -100,26 +107,20 @@ public class WindowHutMiner extends AbstractWindowWorkerBuilding<BuildingMiner.V
     @Override
     public void onButtonClicked(@NotNull final Button button)
     {
-        if (button.getID().equals(BUTTON_CURRENTLEVEL))
+        switch (button.getID())
         {
-            final int row = levelList.getListElementIndexByPane(button);
-            if (row != miner.current && row >= 0 && row < levels.length)
-            {
-                miner.current = row;
-                MineColonies.getNetwork().sendToServer(new MinerSetLevelMessage(miner, row));
-            }
+            case BUTTON_CURRENTLEVEL:
+                final int row = levelList.getListElementIndexByPane(button);
+                if (row != miner.current && row >= 0 && row < levelsInfo.size())
+                {
+                    miner.current = row;
+                    MineColonies.getNetwork().sendToServer(new MinerSetLevelMessage(miner, row));
+                }
+                break; 
+            default:
+                super.onButtonClicked(button);
+                break;
         }
-        else
-        {
-            super.onButtonClicked(button);
-        }
-    }
-
-    @NotNull
-    @Override
-    public String getBuildingName()
-    {
-        return "com.minecolonies.coremod.gui.workerHuts.minerHut";
     }
 }
 

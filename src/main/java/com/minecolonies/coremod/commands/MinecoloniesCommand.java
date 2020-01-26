@@ -3,8 +3,8 @@ package com.minecolonies.coremod.commands;
 import com.google.common.collect.ImmutableMap;
 import com.minecolonies.api.configuration.Configurations;
 import com.minecolonies.coremod.commands.colonycommands.HomeTeleportCommand;
-import com.minecolonies.coremod.commands.generalcommands.BackupCommand;
-import com.minecolonies.coremod.commands.generalcommands.RandomTeleportCommand;
+import com.minecolonies.coremod.commands.colonycommands.LoadColonyBackupCommand;
+import com.minecolonies.coremod.commands.generalcommands.*;
 import net.minecraft.entity.player.EntityPlayer;
 import org.jetbrains.annotations.NotNull;
 
@@ -26,11 +26,19 @@ public class MinecoloniesCommand extends AbstractSplitCommand
     private final ImmutableMap<String, ISubCommand> subCommands =
       new ImmutableMap.Builder<String, ISubCommand>()
         .put(ColoniesCommand.DESC, new ColoniesCommand(DESC))
+        .put(DeleteCommand.DESC, new DeleteCommand(DESC))
         .put(ColonyCommand.DESC, new ColonyCommand(DESC))
         .put(CitizensCommand.DESC, new CitizensCommand(DESC))
         .put(RandomTeleportCommand.DESC, new RandomTeleportCommand(DESC))
         .put(BackupCommand.DESC, new BackupCommand(DESC))
         .put(HomeTeleportCommand.DESC, new HomeTeleportCommand(DESC))
+        .put(LoadColonyBackupCommand.DESC, new LoadColonyBackupCommand(DESC))
+        .put(RaidAllTonightCommand.DESC, new RaidAllTonightCommand(DESC))
+        .put(RaidAllNowCommand.DESC, new RaidAllNowCommand(DESC))
+        .put(CheckForAutoDeletesCommand.DESC, new CheckForAutoDeletesCommand(DESC))
+        .put(WhoAmICommand.DESC, new WhoAmICommand(DESC))
+        .put(WhereAmICommand.DESC, new WhereAmICommand(DESC))
+        .put(LootGenCommand.DESC, new LootGenCommand(DESC))
         .build();
 
     /**
@@ -49,7 +57,7 @@ public class MinecoloniesCommand extends AbstractSplitCommand
      */
     public static boolean canExecuteCommand(@NotNull final EntityPlayer player)
     {
-        if (Configurations.teleportBuffer == 0)
+        if (Configurations.gameplay.teleportBuffer == 0 || AbstractSingleCommand.isPlayerOpped(player))
         {
             return true;
         }
@@ -72,7 +80,7 @@ public class MinecoloniesCommand extends AbstractSplitCommand
         final Map<UUID, Instant> mapCopy = new HashMap<>(commandExecutions);
         for (final Map.Entry<UUID, Instant> entry : mapCopy.entrySet())
         {
-            if (Instant.now().isAfter(entry.getValue()) && (Instant.now().getEpochSecond() - entry.getValue().getEpochSecond()) > Configurations.teleportBuffer)
+            if (Instant.now().isAfter(entry.getValue()) && (Instant.now().getEpochSecond() - entry.getValue().getEpochSecond()) > Configurations.gameplay.teleportBuffer)
             {
                 commandExecutions.remove(entry.getKey());
             }

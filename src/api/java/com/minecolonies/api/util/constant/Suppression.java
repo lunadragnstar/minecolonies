@@ -96,6 +96,60 @@ public final class Suppression
     @NonNls
     public static final String RESOURCES_SHOULD_BE_CLOSED = "squid:S2095 ";
 
+    /**
+     * We sometimes suppress this because it would be silly to split up the classes.
+     * <p>
+     * Use this sparely!
+     */
+    @NonNls
+    public static final String BIG_CLASS = "squid:S2972";
+
+    /**
+     * Sometimes classes are used in many places.
+     */
+    @NonNls
+    public static final String SPLIT_CLASS = "squid:S1200";
+
+    /**
+     * Sometimes it would decrease the readability of the code.
+     * <p>
+     * Use this sparely!
+     */
+    @NonNls
+    public static final String LEFT_CURLY_BRACE = "squid:LeftCurlyBraceStartLineCheck";
+
+    /**
+     * Sometimes it doesn't make sense (Or isn't viable) to make a public value / method protected.
+     * <p>
+     * Use this sparely!
+     */
+    @NonNls
+    public static final String MAKE_PROTECTED = "squid:S2386";
+
+    /**
+     * Yeah generics are complicated. No reason to not use fully though.
+     */
+    @NonNls
+    public static final String GENERIC_WILDCARD = "squid:S1452";
+
+    /**
+     * Sometimes we don't need to override the equals of subclasses.
+     * (Building IDS are unique enough for equals for example).
+     */
+    @NonNls
+    public static final String OVERRIDE_EQUALS = "squid:S2160";
+
+    /**
+     * Sometimes it is just needed to have many returns so the code is easily readable.
+     */
+    @NonNls
+    public static final String TOO_MANY_RETURNS = "squid:S1142";
+
+    /**
+     * Sometimes code is commented out and not deleted for a reason.
+     */
+    @NonNls
+    public static final String COMMENTED_OUT_CODE_LINE = "squid:CommentedOutCodeLine";
 
     private Suppression()
     {

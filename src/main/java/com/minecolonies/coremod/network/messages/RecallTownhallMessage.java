@@ -1,13 +1,14 @@
 package com.minecolonies.coremod.network.messages;
 
+import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.IColonyManager;
+import com.minecolonies.api.colony.buildings.workerbuildings.ITownHall;
+import com.minecolonies.api.colony.buildings.workerbuildings.ITownHallView;
 import com.minecolonies.api.colony.permissions.Action;
+import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
 import com.minecolonies.api.util.LanguageHandler;
 import com.minecolonies.api.util.Log;
-import com.minecolonies.coremod.colony.CitizenData;
-import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.buildings.BuildingTownHall;
-import com.minecolonies.coremod.entity.EntityCitizen;
 import com.minecolonies.coremod.util.TeleportHelper;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -17,12 +18,19 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Optional;
+
 /**
  * Used to handle citizen recalls to the townhall.
  */
 public class RecallTownhallMessage extends AbstractMessage<RecallTownhallMessage, IMessage>
 {
     private int colonyId;
+
+    /**
+     * The dimension of the message.
+     */
+    private int dimension;
 
     /**
      * Empty public constructor.
@@ -37,28 +45,31 @@ public class RecallTownhallMessage extends AbstractMessage<RecallTownhallMessage
      *
      * @param townhall View of the townhall.
      */
-    public RecallTownhallMessage(@NotNull final BuildingTownHall.View townhall)
+    public RecallTownhallMessage(@NotNull final ITownHallView townhall)
     {
         super();
         this.colonyId = townhall.getColony().getID();
+        this.dimension = townhall.getColony().getDimension();
     }
 
     @Override
     public void fromBytes(final ByteBuf buf)
     {
         colonyId = buf.readInt();
+        dimension = buf.readInt();
     }
 
     @Override
     public void toBytes(final ByteBuf buf)
     {
         buf.writeInt(colonyId);
+        buf.writeInt(dimension);
     }
 
     @Override
     public void messageOnServerThread(final RecallTownhallMessage message, final EntityPlayerMP player)
     {
-        final Colony colony = ColonyManager.getColony(message.colonyId);
+        final IColony colony = IColonyManager.getInstance().getColonyByDimension(message.colonyId, message.dimension);
         if (colony != null)
         {
             //Verify player has permission to change this huts settings
@@ -67,23 +78,22 @@ public class RecallTownhallMessage extends AbstractMessage<RecallTownhallMessage
                 return;
             }
 
-            @Nullable final BuildingTownHall building = colony.getTownHall();
+            @Nullable final ITownHall building = colony.getBuildingManager().getTownHall();
             if (building != null)
             {
-                final BlockPos location = building.getLocation();
+                final BlockPos location = building.getPosition();
                 final World world = colony.getWorld();
-                for (final CitizenData citizenData : colony.getCitizens().values())
+                for (final ICitizenData citizenData : colony.getCitizenManager().getCitizens())
                 {
-                    EntityCitizen citizen = citizenData.getCitizenEntity();
-                    if(citizen == null)
+                    Optional<AbstractEntityCitizen> optionalEntityCitizen = citizenData.getCitizenEntity();
+                    if (!optionalEntityCitizen.isPresent())
                     {
-
                         Log.getLogger().warn(String.format("Citizen #%d:%d has gone AWOL, respawning them!", colony.getID(), citizenData.getId()));
-                        colony.spawnCitizen(citizenData);
-                        citizen = citizenData.getCitizenEntity();
+                        citizenData.updateCitizenEntityIfNecessary();
+                        optionalEntityCitizen = citizenData.getCitizenEntity();
                     }
 
-                    if (!TeleportHelper.teleportCitizen(citizen, world, location))
+                    if (optionalEntityCitizen.isPresent() && !TeleportHelper.teleportCitizen(optionalEntityCitizen.get(), world, location))
                     {
                         LanguageHandler.sendPlayerMessage(player, "com.minecolonies.coremod.workerHuts.recallFail");
                     }

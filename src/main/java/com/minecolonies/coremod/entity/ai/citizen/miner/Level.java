@@ -1,19 +1,22 @@
 package com.minecolonies.coremod.entity.ai.citizen.miner;
 
+import com.minecolonies.api.util.BlockPosUtil;
 import com.minecolonies.api.util.Vec2i;
-import com.minecolonies.coremod.colony.buildings.BuildingMiner;
+import com.minecolonies.coremod.colony.buildings.workerbuildings.BuildingMiner;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.common.util.Constants;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
 import static com.minecolonies.coremod.entity.ai.citizen.miner.Node.NodeType.*;
 
 /**
- * Miner Level Data Structure.
+ * Miner Level Data StructureIterator.
  * <p>
  * A Level contains all the nodes for one level of the mine.
  */
@@ -27,37 +30,38 @@ public class Level
     private static final String TAG_LADDERX    = "LadderX";
     private static final String TAG_LADDERZ    = "LadderZ";
     private static final String TAG_OPEN_NODES = "OpenNodes";
+    private static final String TAG_LEVEL_SIGN = "LevelSign";
 
     /**
      * Possible rotations.
      */
-    private static final int                    ROTATE_ONCE        = 1;
-    private static final int                    ROTATE_TWICE       = 2;
-    private static final int                    ROTATE_THREE_TIMES = 3;
-    private static final int                    MAX_ROTATIONS      = 4;
+    private static final int              ROTATE_ONCE        = 1;
+    private static final int              ROTATE_TWICE       = 2;
+    private static final int              ROTATE_THREE_TIMES = 3;
+    private static final int              MAX_ROTATIONS      = 4;
     /**
      * Random object needed for some tasks.
      */
-    private static final Random                 rand               = new Random();
+    private static final Random           rand               = new Random();
     /**
      * Number to choose random types. It's random.nextInt(RANDOM_TYPES),
      */
-    private static final int                  RANDOM_TYPES    = 4;
+    private static final int              RANDOM_TYPES       = 4;
     /**
      * Comparator to compare two nodes, for the priority queue.
      */
     @NotNull
-    private static final Comparator<Node>     NODE_COMPARATOR = (Node n1, Node n2) -> rand.nextInt(100) > 50 ? 1 : -1;
+    private static final Comparator<Node> NODE_COMPARATOR    = (Node n1, Node n2) -> rand.nextInt(100) > 50 ? 1 : -1;
     /**
      * The hashMap of nodes, check for nodes with the tuple of the parent x and z.
      */
     @NotNull
-    private final        Map<Vec2i, Node> nodes               = new HashMap<>();
+    private final        Map<Vec2i, Node> nodes              = new HashMap<>();
     /**
      * The queue of open Nodes. Get a new node to work on here.
      */
     @NotNull
-    private final        Queue<Node>          openNodes       = new PriorityQueue<>(11, NODE_COMPARATOR);
+    private final        Queue<Node>      openNodes          = new PriorityQueue<>(11, NODE_COMPARATOR);
 
     /**
      * The depth of the level stored as the y coordinate.
@@ -70,14 +74,26 @@ public class Level
     private final Node ladderNode;
 
     /**
+     * The node of the ladder.
+     */
+    @Nullable
+    private BlockPos levelSign;
+
+    /**
+     * Offset number to make build nodes count proper
+     */
+    private static final int BUILT_NODES_OFFSET = -2;
+
+    /**
      * Create a new level model.
      *
      * @param buildingMiner reference to the miner building.
      * @param depth         the depth of this level.
      */
-    public Level(@NotNull final BuildingMiner buildingMiner, final int depth)
+    public Level(@NotNull final BuildingMiner buildingMiner, final int depth, final BlockPos levelSign)
     {
         this.depth = depth;
+        this.levelSign = levelSign;
 
         final int cobbleX = buildingMiner.getCobbleLocation().getX();
         final int cobbleZ = buildingMiner.getCobbleLocation().getZ();
@@ -88,12 +104,12 @@ public class Level
 
         //They are shaft and ladderBack, their parents are the shaft.
         @NotNull final Node cobbleNode = new Node(cobbleCenter.getX(), cobbleCenter.getZ(), ladderCenter);
-        cobbleNode.setStyle(Node.NodeType.LADDER_BACK);
+        cobbleNode.setStyle(LADDER_BACK);
         cobbleNode.setStatus(Node.NodeStatus.COMPLETED);
         nodes.put(cobbleCenter, cobbleNode);
 
         ladderNode = new Node(ladderCenter.getX(), ladderCenter.getZ(), null);
-        ladderNode.setStyle(Node.NodeType.SHAFT);
+        ladderNode.setStyle(SHAFT);
         ladderNode.setStatus(Node.NodeStatus.COMPLETED);
         nodes.put(ladderCenter, ladderNode);
 
@@ -126,6 +142,14 @@ public class Level
     {
 
         this.depth = compound.getInteger(TAG_DEPTH);
+        if (compound.hasKey(TAG_LEVEL_SIGN))
+        {
+            this.levelSign = BlockPosUtil.readFromNBT(compound, TAG_LEVEL_SIGN);
+        }
+        else
+        {
+            this.levelSign = null;
+        }
 
         final NBTTagList nodeTagList = compound.getTagList(TAG_NODES, Constants.NBT.TAG_COMPOUND);
         for (int i = 0; i < nodeTagList.tagCount(); i++)
@@ -136,8 +160,8 @@ public class Level
 
         final boolean hasDoubles = compound.hasKey(TAG_LADDERX, Constants.NBT.TAG_DOUBLE);
 
-        int ladderX;
-        int ladderZ;
+        final int ladderX;
+        final int ladderZ;
         if (hasDoubles)
         {
             ladderX = MathHelper.floor(compound.getDouble(TAG_LADDERX));
@@ -163,23 +187,35 @@ public class Level
     /**
      * Getter for a random Node in the level.
      *
+     * @param node the last node.
      * @return any random node.
      */
-    public Node getRandomNode()
+    public Node getRandomNode(@Nullable final Node node)
     {
-        return openNodes.peek();
+        Node nextNode = null;
+        if (node != null && rand.nextInt(RANDOM_TYPES) > 0)
+        {
+            nextNode = node.getRandomNextNode(this, 0);
+        }
+        return nextNode == null ? openNodes.peek() : nextNode;
     }
 
     /**
-     * Closes the first Node in the list (Has been returned previously probably).
+     * Closes a given node. Or close the first in the list if null.
      * Then creates the new nodes connected to it.
      *
      * @param rotation the rotation of the node.
+     * @param node the node to close.
      */
-    public void closeNextNode(final int rotation)
+    public void closeNextNode(final int rotation, final Node node)
     {
-        final Node tempNode = openNodes.poll();
+        final Node tempNode = node == null ? openNodes.peek() : node;
         final List<Vec2i> nodeCenterList = new ArrayList<>(3);
+
+        if (tempNode == null)
+        {
+            return;
+        }
 
         switch (tempNode.getStyle())
         {
@@ -210,21 +246,7 @@ public class Level
             openNodes.add(tempNodeToAdd);
         }
         nodes.get(new Vec2i(tempNode.getX(), tempNode.getZ())).setStatus(Node.NodeStatus.COMPLETED);
-    }
-
-    private static Node.NodeType getRandomNodeType()
-    {
-        final int randNumber = rand.nextInt(RANDOM_TYPES);
-        if (randNumber <= 1)
-        {
-            return TUNNEL;
-        }
-        else if (randNumber == 2)
-        {
-            return BEND;
-        }
-
-        return CROSSROAD;
+        openNodes.removeIf(tempNode::equals);
     }
 
     /**
@@ -251,6 +273,21 @@ public class Level
         }
     }
 
+    private static Node.NodeType getRandomNodeType()
+    {
+        final int randNumber = rand.nextInt(RANDOM_TYPES);
+        if (randNumber <= 1)
+        {
+            return TUNNEL;
+        }
+        else if (randNumber == 2)
+        {
+            return BEND;
+        }
+
+        return CROSSROAD;
+    }
+
     @NotNull
     @Override
     public String toString()
@@ -266,6 +303,10 @@ public class Level
     public void writeToNBT(@NotNull final NBTTagCompound compound)
     {
         compound.setInteger(TAG_DEPTH, depth);
+        if (levelSign != null)
+        {
+            BlockPosUtil.writeToNBT(compound, TAG_LEVEL_SIGN, levelSign);
+        }
 
         @NotNull final NBTTagList nodeTagList = new NBTTagList();
         for (@NotNull final Node node : nodes.values())
@@ -300,6 +341,11 @@ public class Level
         return nodes.size();
     }
 
+    public int getNumberOfBuiltNodes()
+    {
+        return nodes.size() - openNodes.size() + BUILT_NODES_OFFSET;
+    }
+
     public int getDepth()
     {
         return depth;
@@ -316,10 +362,12 @@ public class Level
      *
      * @param newNode the node to add.
      */
+    /* not in use
     public void addNode(final Node newNode)
     {
         nodes.put(new Vec2i(newNode.getX(), newNode.getZ()), newNode);
     }
+    */
 
     /**
      * Returns a node by its key from the map.
@@ -330,5 +378,26 @@ public class Level
     public Node getNode(final Vec2i key)
     {
         return nodes.get(key);
+    }
+
+    /**
+     * Returns a node by its key from the map.
+     *
+     * @param key the Point2D key.
+     * @return the Node.
+     */
+    public Node getOpenNode(final Vec2i key)
+    {
+        return nodes.get(key);
+    }
+
+    /**
+     * Returns position of level's levelSign
+     * 
+     * @return levelSign
+     */
+    public BlockPos getLevelSign()
+    {
+        return levelSign;
     }
 }

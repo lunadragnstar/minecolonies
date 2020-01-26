@@ -34,7 +34,10 @@ public enum Action
     ATTACK_ENTITY(22),
     //has access to allowed list, "hostile+" or "neutral+"
     ACCESS_FREE_BLOCKS(23),
-    TELEPORT_TO_COLONY(24);
+    TELEPORT_TO_COLONY(24),
+    EXPLODE(25),
+    RECEIVE_MESSAGES_FAR_AWAY(26),
+    CAN_KEEP_COLONY_ACTIVE_WHILE_AWAY(27);
 
     private final int flag;
 

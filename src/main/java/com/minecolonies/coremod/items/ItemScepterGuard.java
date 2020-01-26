@@ -1,21 +1,31 @@
 package com.minecolonies.coremod.items;
 
+import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.IColonyManager;
+import com.minecolonies.api.colony.IColonyView;
+import com.minecolonies.api.colony.buildings.IBuilding;
+import com.minecolonies.api.colony.buildings.IGuardBuilding;
+import com.minecolonies.api.colony.buildings.views.IBuildingView;
+import com.minecolonies.api.entity.ai.citizen.guards.GuardTask;
 import com.minecolonies.api.util.BlockPosUtil;
 import com.minecolonies.api.util.LanguageHandler;
-import com.minecolonies.coremod.colony.CitizenData;
-import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.ColonyManager;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
-import com.minecolonies.coremod.colony.buildings.BuildingGuardTower;
+import com.minecolonies.coremod.client.gui.WindowGuardControl;
+import com.minecolonies.coremod.colony.buildings.AbstractBuildingGuards;
+import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;
+
+import static com.minecolonies.api.util.constant.NbtTagConstants.TAG_ID;
+import static com.minecolonies.api.util.constant.NbtTagConstants.TAG_POS;
 
 /**
  * Guard Scepter Item class. Used to give tasks to guards.
@@ -28,7 +38,7 @@ public class ItemScepterGuard extends AbstractItemMinecolonies
     private static final String TAG_LAST_POS = "lastPos";
 
     /**
-     * Caliper constructor. Sets max stack to 1, like other tools.
+     * GuardScepter constructor. Sets max stack to 1, like other tools.
      */
     public ItemScepterGuard()
     {
@@ -41,22 +51,22 @@ public class ItemScepterGuard extends AbstractItemMinecolonies
     @NotNull
     @Override
     public EnumActionResult onItemUse(
-                                       final EntityPlayer playerIn,
-                                       final World worldIn,
-                                       final BlockPos pos,
-                                       final EnumHand hand,
-                                       final EnumFacing facing,
-                                       final float hitX,
-                                       final float hitY,
-                                       final float hitZ)
+      final EntityPlayer playerIn,
+      final World worldIn,
+      final BlockPos pos,
+      final EnumHand hand,
+      final EnumFacing facing,
+      final float hitX,
+      final float hitY,
+      final float hitZ)
     {
-        final ItemStack scepter = playerIn.getHeldItem(hand);
         // if server world, do nothing
         if (worldIn.isRemote)
         {
             return EnumActionResult.FAIL;
         }
 
+        final ItemStack scepter = playerIn.getHeldItem(hand);
         if (!scepter.hasTagCompound())
         {
             scepter.setTagCompound(new NBTTagCompound());
@@ -76,6 +86,41 @@ public class ItemScepterGuard extends AbstractItemMinecolonies
         return handleItemUsage(worldIn, pos, compound, playerIn);
     }
 
+    @NotNull
+    @Override
+    public ActionResult<ItemStack> onItemRightClick(final World worldIn, final EntityPlayer playerIn, @NotNull final EnumHand hand)
+    {
+        final ItemStack stack = playerIn.getHeldItem(hand);
+        if (!stack.hasTagCompound())
+        {
+            stack.setTagCompound(new NBTTagCompound());
+        }
+        final NBTTagCompound compound = stack.getTagCompound();
+
+        if (worldIn.isRemote && compound != null)
+        {
+            if (!compound.hasKey(TAG_ID))
+            {
+                return ActionResult.newResult(EnumActionResult.FAIL, stack);
+            }
+            final IColonyView colony = IColonyManager.getInstance().getColonyView(compound.getInteger(TAG_ID), Minecraft.getMinecraft().world.provider.getDimension());
+            if (colony == null)
+            {
+                return ActionResult.newResult(EnumActionResult.FAIL, stack);
+            }
+            final BlockPos guardTower = BlockPosUtil.readFromNBT(compound, TAG_POS);
+            final IBuildingView hut = colony.getBuilding(guardTower);
+
+            if (hut instanceof AbstractBuildingGuards.View && playerIn.isSneaking())
+            {
+                final WindowGuardControl window = new WindowGuardControl((AbstractBuildingGuards.View) hut);
+                window.open();
+            }
+        }
+
+        return ActionResult.newResult(EnumActionResult.SUCCESS, stack);
+    }
+
     /**
      * Handles the usage of the item.
      *
@@ -88,27 +133,32 @@ public class ItemScepterGuard extends AbstractItemMinecolonies
     @NotNull
     private static EnumActionResult handleItemUsage(final World worldIn, final BlockPos pos, final NBTTagCompound compound, final EntityPlayer playerIn)
     {
-        final Colony colony = ColonyManager.getClosestColony(worldIn, pos);
+        if (!compound.hasKey(TAG_ID))
+        {
+            return EnumActionResult.FAIL;
+        }
+        final IColony colony = IColonyManager.getInstance().getColonyByWorld(compound.getInteger(TAG_ID), worldIn);
         if (colony == null)
         {
             return EnumActionResult.FAIL;
         }
 
-        final BlockPos guardTower = BlockPosUtil.readFromNBT(compound, "pos");
-        final AbstractBuilding hut = colony.getBuilding(guardTower);
-        if (hut == null || !(hut instanceof BuildingGuardTower))
+        final BlockPos guardTower = BlockPosUtil.readFromNBT(compound, TAG_POS);
+        final IBuilding hut = colony.getBuildingManager().getBuilding(guardTower);
+        if (!(hut instanceof AbstractBuildingGuards))
         {
             return EnumActionResult.FAIL;
         }
+        final IGuardBuilding tower = (IGuardBuilding) hut;
 
-        if(BlockPosUtil.getDistance2D(pos, guardTower) > ((BuildingGuardTower) hut).getPatrolDistance())
+        if(BlockPosUtil.getDistance2D(pos, guardTower) > tower.getPatrolDistance())
         {
             LanguageHandler.sendPlayerMessage(playerIn, "com.minecolonies.coremod.job.guard.toolClickGuardTooFar");
             return EnumActionResult.FAIL;
         }
 
-        final BuildingGuardTower.Task task = BuildingGuardTower.Task.values()[compound.getInteger("task")];
-        final CitizenData citizen = ((BuildingGuardTower) hut).getWorker();
+        final GuardTask task = GuardTask.values()[compound.getInteger("task")];
+        final ICitizenData citizen = tower.getMainCitizen();
 
         String name = "";
         if (citizen != null)
@@ -116,19 +166,19 @@ public class ItemScepterGuard extends AbstractItemMinecolonies
             name = " " + citizen.getName();
         }
 
-        if (task.equals(BuildingGuardTower.Task.GUARD))
+        if (task.equals(GuardTask.GUARD))
         {
             LanguageHandler.sendPlayerMessage(playerIn, "com.minecolonies.coremod.job.guard.toolClickGuard", pos, name);
-            ((BuildingGuardTower) hut).setGuardTarget(pos);
+            tower.setGuardPos(pos);
             playerIn.inventory.removeStackFromSlot(playerIn.inventory.currentItem);
         }
         else
         {
             if (!compound.hasKey(TAG_LAST_POS))
             {
-                ((BuildingGuardTower) hut).resetPatrolTargets();
+                tower.resetPatrolTargets();
             }
-            ((BuildingGuardTower) hut).addPatrolTargets(pos);
+            tower.addPatrolTargets(pos);
             LanguageHandler.sendPlayerMessage(playerIn, "com.minecolonies.coremod.job.guard.toolClickPatrol", pos, name);
         }
         BlockPosUtil.writeToNBT(compound, TAG_LAST_POS, pos);

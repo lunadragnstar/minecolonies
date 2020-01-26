@@ -1,7 +1,7 @@
 package com.minecolonies.coremod.util;
 
+import com.minecolonies.api.entity.citizen.AbstractEntityCitizen;
 import com.minecolonies.api.util.EntityUtils;
-import com.minecolonies.coremod.entity.EntityCitizen;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -20,7 +20,7 @@ public final class TeleportHelper
         // Intentionally left empty.
     }
 
-    public static boolean teleportCitizen(final EntityCitizen citizen, final World world, final BlockPos location)
+    public static boolean teleportCitizen(final AbstractEntityCitizen citizen, final World world, final BlockPos location)
     {
         if (citizen == null || world == null)
         {
@@ -33,15 +33,27 @@ public final class TeleportHelper
             return false;
         }
 
-        citizen.dismountRidingEntity();
+        if(citizen.getCitizenSleepHandler().isAsleep())
+        {
+            citizen.getCitizenSleepHandler().onWakeUp();
+        }
 
+        citizen.dismountRidingEntity();
         citizen.setLocationAndAngles(
           spawnPoint.getX() + MIDDLE_BLOCK_OFFSET,
           spawnPoint.getY(),
           spawnPoint.getZ() + MIDDLE_BLOCK_OFFSET,
-          citizen.rotationYaw,
-          citizen.rotationPitch);
-        citizen.getNavigator().clearPathEntity();
+          citizen.getRotationYaw(),
+          citizen.getRotationPitch());
+        if(citizen.getProxy() != null)
+        {
+            citizen.getProxy().reset();
+        }
+        citizen.getNavigator().clearPath();
+        if(citizen.getProxy() != null)
+        {
+            citizen.getProxy().reset();
+        }
 
         return true;
     }

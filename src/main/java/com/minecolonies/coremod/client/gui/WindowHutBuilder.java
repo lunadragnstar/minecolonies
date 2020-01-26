@@ -1,6 +1,8 @@
 package com.minecolonies.coremod.client.gui;
 
+import com.minecolonies.api.colony.buildings.views.IBuildingView;
 import com.minecolonies.api.util.InventoryUtils;
+import com.minecolonies.api.util.ItemStackUtils;
 import com.minecolonies.api.util.Log;
 import com.minecolonies.api.util.constant.Constants;
 import com.minecolonies.blockout.Color;
@@ -11,9 +13,8 @@ import com.minecolonies.blockout.controls.Label;
 import com.minecolonies.blockout.views.ScrollingList;
 import com.minecolonies.blockout.views.SwitchView;
 import com.minecolonies.coremod.MineColonies;
-import com.minecolonies.coremod.colony.buildings.AbstractBuilding;
 import com.minecolonies.coremod.colony.buildings.utils.BuildingBuilderResource;
-import com.minecolonies.coremod.colony.buildings.views.BuildingBuilderView;
+import com.minecolonies.coremod.colony.buildings.workerbuildings.BuildingBuilder;
 import com.minecolonies.coremod.network.messages.MarkBuildingDirtyMessage;
 import com.minecolonies.coremod.network.messages.TransferItemsRequestMessage;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -24,31 +25,24 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.minecolonies.api.util.constant.WindowConstants.*;
+
 /**
  * Window for the builder hut.
  */
-public class WindowHutBuilder extends AbstractWindowWorkerBuilding<BuildingBuilderView>
+public class WindowHutBuilder extends AbstractWindowWorkerBuilding<BuildingBuilder.View>
 {
     /**
-     * The builders gui file.
+     * Color constants for builder list.
      */
-    private static final String HUT_BUILDER_RESOURCE_SUFFIX        = ":gui/windowhutbuilder.xml";
-    private static final String LIST_RESOURCES                     = "resources";
-    private static final String PAGE_RESOURCES                     = "resourceActions";
-    private static final String VIEW_PAGES                         = "pages";
-    private static final String RESOURCE_NAME                      = "resourceName";
-    private static final String RESOURCE_AVAILABLE_NEEDED          = "resourceAvailableNeeded";
-    private static final String RESOURCE_MISSING                   = "resourceMissing";
-    private static final String RESOURCE_ADD                       = "resourceAdd";
-    private static final String RESOURCE_ID                        = "resourceId";
-    private static final String RESOURCE_QUANTITY_MISSING          = "resourceQuantity";
-    private static final String RESOURCE_ICON                      = "resourceIcon";
+    public static final int RED       = Color.getByName("red", 0);
+    public static final int DARKGREEN = Color.getByName("darkgreen", 0);
+    public static final int BLACK     = Color.getByName("black", 0);
 
-    private static final int RED       = Color.getByName("red", 0);
-    private static final int DARKGREEN = Color.getByName("darkgreen", 0);
-    private static final int BLACK     = Color.getByName("black", 0);
-
-    private final BuildingBuilderView builder;
+    /**
+     * Current Building view
+     */
+    private IBuildingView builder;
 
     /**
      * List of resources needed.
@@ -59,9 +53,9 @@ public class WindowHutBuilder extends AbstractWindowWorkerBuilding<BuildingBuild
     /**
      * Constructor for window builder hut.
      *
-     * @param building {@link com.minecolonies.coremod.colony.buildings.views.BuildingBuilderView}.
+     * @param building {@link BuildingBuilder.View}.
      */
-    public WindowHutBuilder(final BuildingBuilderView building)
+    public WindowHutBuilder(final BuildingBuilder.View building)
     {
         super(building, Constants.MOD_ID + HUT_BUILDER_RESOURCE_SUFFIX);
         this.builder = building;
@@ -74,17 +68,30 @@ public class WindowHutBuilder extends AbstractWindowWorkerBuilding<BuildingBuild
      */
     private void pullResourcesFromHut()
     {
-        final AbstractBuilding.View newView = builder.getColony().getBuilding(builder.getID());
-        if (newView instanceof BuildingBuilderView)
+        final IBuildingView newView = builder.getColony().getBuilding(builder.getID());
+        if (newView instanceof BuildingBuilder.View && newView != builder)
         {
-            final BuildingBuilderView updatedView = (BuildingBuilderView) newView;
+            builder = newView;
+            final BuildingBuilder.View updatedView = (BuildingBuilder.View) newView;
             final InventoryPlayer inventory = this.mc.player.inventory;
+            final boolean isCreative = this.mc.player.capabilities.isCreativeMode;
 
             resources.clear();
             resources.addAll(updatedView.getResources().values());
             for (final BuildingBuilderResource resource : resources)
             {
-                resource.setPlayerAmount(InventoryUtils.getItemCountInItemHandler(new InvWrapper(inventory), resource.getItem(), resource.getDamageValue()));
+                final int amountToSet;
+                if (isCreative)
+                {
+                    amountToSet = resource.getAmount();
+                }
+                else
+                {
+                    amountToSet =
+                      InventoryUtils.getItemCountInItemHandler(new InvWrapper(inventory),
+                        stack -> !ItemStackUtils.isEmpty(stack) && stack.isItemEqual(resource.getItemStack()));
+                }
+                resource.setPlayerAmount(amountToSet);
             }
 
             resources.sort(new BuildingBuilderResource.ResourceComparator());
@@ -116,6 +123,10 @@ public class WindowHutBuilder extends AbstractWindowWorkerBuilding<BuildingBuild
 
         //Make sure we have a fresh view
         MineColonies.getNetwork().sendToServer(new MarkBuildingDirtyMessage(this.building));
+
+        findPaneOfTypeByID(LABEL_CONSTRUCTION_NAME, Label.class).setLabelText(building.getConstructionName());
+        findPaneOfTypeByID(LABEL_CONSTRUCTION_POS, Label.class).setLabelText(building.getConstructionPos());
+        findPaneOfTypeByID(LABEL_PROGRESS, Label.class).setLabelText(building.getProgress());
     }
 
     /**
@@ -177,11 +188,25 @@ public class WindowHutBuilder extends AbstractWindowWorkerBuilding<BuildingBuild
             resourceMissingLabel.setLabelText("");
         }
 
-        neededLabel.setLabelText(Integer.toString(resource.getAvailable()) + " / " + Integer.toString(resource.getAmount()));
+        neededLabel.setLabelText(resource.getAvailable() + " / " + resource.getAmount());
         rowPane.findPaneOfTypeByID(RESOURCE_ID, Label.class).setLabelText(Integer.toString(index));
         rowPane.findPaneOfTypeByID(RESOURCE_QUANTITY_MISSING, Label.class).setLabelText(Integer.toString(resource.getAmount() - resource.getAvailable()));
 
-        rowPane.findPaneOfTypeByID(RESOURCE_ICON, ItemIcon.class).setItem(new ItemStack(resource.getItem(), 1, resource.getDamageValue()));
+        final ItemStack stack = new ItemStack(resource.getItem(), 1, resource.getDamageValue());
+        stack.setTagCompound(resource.getItemStack().getTagCompound());
+        rowPane.findPaneOfTypeByID(RESOURCE_ICON, ItemIcon.class).setItem(stack);
+    }
+
+    /**
+     * Returns the name of a building.
+     *
+     * @return Name of a building.
+     */
+    @NotNull
+    @Override
+    public String getBuildingName()
+    {
+        return "com.minecolonies.coremod.gui.workerHuts.buildersHut";
     }
 
     @Override
@@ -198,18 +223,6 @@ public class WindowHutBuilder extends AbstractWindowWorkerBuilding<BuildingBuild
     }
 
     /**
-     * Returns the name of a building.
-     *
-     * @return Name of a building.
-     */
-    @NotNull
-    @Override
-    public String getBuildingName()
-    {
-        return "com.minecolonies.coremod.gui.workerHuts.buildersHut";
-    }
-
-    /**
      * On Button click transfert Items.
      *
      * @param button the clicked button.
@@ -217,7 +230,7 @@ public class WindowHutBuilder extends AbstractWindowWorkerBuilding<BuildingBuild
     private void transferItems(@NotNull final Button button)
     {
         final Pane pane = button.getParent();
-
+        button.disable();
         final Label idLabel = pane.findPaneOfTypeByID(RESOURCE_ID, Label.class);
         final int index = Integer.parseInt(idLabel.getLabelText());
         final BuildingBuilderResource res = resources.get(index);
@@ -229,10 +242,15 @@ public class WindowHutBuilder extends AbstractWindowWorkerBuilding<BuildingBuild
         {
             // The itemStack size should not be greater than itemStack.getMaxStackSize, We send 1 instead
             // and use quantity for the size
-            @NotNull final ItemStack itemStack = new ItemStack(res.getItem(), 1, res.getDamageValue());
+            @NotNull final ItemStack itemStack = res.getItemStack().copy();
+            itemStack.setCount(1);
             final Label quantityLabel = pane.findPaneOfTypeByID(RESOURCE_QUANTITY_MISSING, Label.class);
             final int quantity = Integer.parseInt(quantityLabel.getLabelText());
-            MineColonies.getNetwork().sendToServer(new TransferItemsRequestMessage(this.building, itemStack, quantity));
+            final int needed = res.getAmount() - res.getAvailable();
+            res.setAvailable(Math.min(res.getAmount(), res.getAvailable() + res.getPlayerAmount()));
+            res.setPlayerAmount(Math.max(0, res.getPlayerAmount() - needed));
+            resources.sort(new BuildingBuilderResource.ResourceComparator());
+            MineColonies.getNetwork().sendToServer(new TransferItemsRequestMessage(this.building, itemStack, quantity, true));
         }
     }
 }

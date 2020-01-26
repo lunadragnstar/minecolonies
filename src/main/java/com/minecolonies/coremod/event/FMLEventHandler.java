@@ -1,10 +1,20 @@
 package com.minecolonies.coremod.event;
 
+import com.minecolonies.api.colony.IColonyManager;
+import com.minecolonies.api.sounds.ModSoundEvents;
+import com.minecolonies.api.util.constant.Constants;
 import com.minecolonies.coremod.MineColonies;
 import com.minecolonies.coremod.colony.ColonyManager;
+import com.minecolonies.coremod.entity.pathfinding.Pathfinding;
 import com.minecolonies.coremod.network.messages.ColonyStylesMessage;
 import com.minecolonies.coremod.network.messages.ServerUUIDMessage;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.util.SoundEvent;
+import net.minecraftforge.common.config.Config;
+import net.minecraftforge.common.config.ConfigManager;
+import net.minecraftforge.event.RegistryEvent;
+import net.minecraftforge.fml.client.event.ConfigChangedEvent;
+import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -24,7 +34,7 @@ public class FMLEventHandler
     @SubscribeEvent
     public void onServerTick(final TickEvent.ServerTickEvent event)
     {
-        ColonyManager.onServerTick(event);
+        IColonyManager.getInstance().onServerTick(event);
     }
 
     /**
@@ -36,7 +46,7 @@ public class FMLEventHandler
     @SubscribeEvent
     public void onClientTick(final TickEvent.ClientTickEvent event)
     {
-        ColonyManager.onClientTick(event);
+        IColonyManager.getInstance().onClientTick(event);
     }
 
     /**
@@ -48,7 +58,7 @@ public class FMLEventHandler
     @SubscribeEvent
     public void onWorldTick(final TickEvent.WorldTickEvent event)
     {
-        ColonyManager.onWorldTick(event);
+        IColonyManager.getInstance().onWorldTick(event);
     }
 
     /**
@@ -64,7 +74,43 @@ public class FMLEventHandler
         {
             MineColonies.getNetwork().sendTo(new ServerUUIDMessage(), (EntityPlayerMP) event.player);
             MineColonies.getNetwork().sendTo(new ColonyStylesMessage(), (EntityPlayerMP) event.player);
-            ColonyManager.syncAllColoniesAchievements();
+
+            // This automatically reloads the owner of the colony if failed.
+            IColonyManager.getInstance().getIColonyByOwner(((EntityPlayerMP) event.player).getServerWorld(), event.player);
+            //ColonyManager.syncAllColoniesAchievements();
         }
+        else
+        {
+            IColonyManager.getInstance().resetColonyViews();
+        }
+    }
+
+    /**
+     * Called when the config is changed, used to synch between file and game.
+     *
+     * @param event the on config changed event.
+     */
+    @SubscribeEvent
+    public void onConfigChanged(@NotNull final ConfigChangedEvent.OnConfigChangedEvent event)
+    {
+        ConfigManager.sync(Constants.MOD_ID, Config.Type.INSTANCE);
+    }
+
+    /**
+     * Called when registering sounds,
+     * we have to register all our mod items here.
+     *
+     * @param event the registery event for items.
+     */
+    @SubscribeEvent
+    public void registerSounds(@NotNull final RegistryEvent.Register<SoundEvent> event)
+    {
+        ModSoundEvents.registerSounds(event.getRegistry());
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(final FMLServerStoppedEvent event)
+    {
+        Pathfinding.shutdown();
     }
 }

@@ -1,45 +1,86 @@
 package com.minecolonies.coremod.colony.workorders;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.IColony;
+import com.minecolonies.api.colony.workorders.IWorkManager;
+import com.minecolonies.api.colony.workorders.IWorkOrder;
+import com.minecolonies.api.colony.workorders.WorkOrderType;
+import com.minecolonies.api.colony.workorders.WorkOrderView;
+import com.minecolonies.api.util.BlockPosUtil;
 import com.minecolonies.api.util.Log;
 import com.minecolonies.coremod.colony.CitizenData;
-import com.minecolonies.coremod.colony.Colony;
-import com.minecolonies.coremod.colony.WorkOrderView;
+import com.minecolonies.coremod.colony.buildings.workerbuildings.BuildingBuilder;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.HashMap;
-import java.util.Map;
 
 import static com.minecolonies.api.util.constant.Suppression.UNUSED_METHOD_PARAMETERS_SHOULD_BE_REMOVED;
 
 /**
  * General information between WorkOrders.
  */
-public abstract class AbstractWorkOrder
+public abstract class AbstractWorkOrder implements IWorkOrder
 {
-    private static final String TAG_TYPE = "type";
-    private static final String                                          TAG_ID         = "id";
-    private static final String                                          TAG_CLAIMED_BY = "claimedBy";
-    //  Job and View Class Mapping
+    /**
+     * NBT for storage.
+     */
+    private static final String TAG_BUILDING       = "building";
+    private static final String TAG_TYPE        = "type";
+    private static final String TAG_TH_PRIORITY = "priority";
+    private static final String TAG_ID          = "id";
+    private static final String TAG_CLAIMED_BY  = "claimedBy";
+    private static final String TAG_CLAIMED_BY_BUILDING  = "claimedByBuilding";
+
+    /**
+     * Bimap of workOrder from string to class.
+     */
     @NotNull
-    private static final Map<String, Class<? extends AbstractWorkOrder>> nameToClassMap = new HashMap<>();
-    @NotNull
-    private static final Map<Class<? extends AbstractWorkOrder>, String> classToNameMap = new HashMap<>();
+    private static final BiMap<String, Class<? extends IWorkOrder>> nameToClassBiMap = HashBiMap.create();
+
+    /**
+     * WorkOrder registry.
+     */
     static
     {
         addMapping("build", WorkOrderBuild.class);
         addMapping("decoration", WorkOrderBuildDecoration.class);
+        addMapping("removal", WorkOrderBuildRemoval.class);
+        addMapping("building", WorkOrderBuildBuilding.class);
+        addMapping("miner", WorkOrderBuildMiner.class);
     }
 
-    protected int id;
-    private   int claimedBy;
-    private   int priority;
-    private boolean changed = false;
+    /**
+     * The id of the workOrder.
+     */
+    protected int      id;
+
+    /**
+     * The position of the worker building claiming this workOrder.
+     */
+    private   BlockPos claimedBy;
+
+    /**
+     * The priority of the workOrder.
+     */
+    private   int      priority;
+
+    /**
+     * If the workOrder changed.
+     */
+    private   boolean  changed = false;
+
+    /**
+     * The location to built at.
+     */
+    protected BlockPos buildingLocation;
 
     /**
      * Default constructor; we also start with a new id and replace it during loading;
@@ -56,9 +97,9 @@ public abstract class AbstractWorkOrder
      * @param name       name of work order
      * @param orderClass class of work order
      */
-    private static void addMapping(final String name, @NotNull final Class<? extends AbstractWorkOrder> orderClass)
+    private static void addMapping(final String name, @NotNull final Class<? extends IWorkOrder> orderClass)
     {
-        if (nameToClassMap.containsKey(name))
+        if (nameToClassBiMap.containsKey(name))
         {
             throw new IllegalArgumentException("Duplicate type '" + name + "' when adding Work Order class mapping");
         }
@@ -67,8 +108,8 @@ public abstract class AbstractWorkOrder
         {
             if (orderClass.getDeclaredConstructor() != null)
             {
-                nameToClassMap.put(name, orderClass);
-                classToNameMap.put(orderClass, name);
+                nameToClassBiMap.put(name, orderClass);
+                nameToClassBiMap.inverse().put(orderClass, name);
             }
         }
         catch (final NoSuchMethodException exception)
@@ -83,14 +124,14 @@ public abstract class AbstractWorkOrder
      * @param compound the compound that contains the data for the Work Order
      * @return {@link AbstractWorkOrder} from the NBT
      */
-    public static AbstractWorkOrder createFromNBT(@NotNull final NBTTagCompound compound)
+    public static AbstractWorkOrder createFromNBT(@NotNull final NBTTagCompound compound, final WorkManager manager)
     {
         @Nullable AbstractWorkOrder order = null;
-        @Nullable Class<? extends AbstractWorkOrder> oclass = null;
+        @Nullable Class<? extends IWorkOrder> oclass = null;
 
         try
         {
-            oclass = nameToClassMap.get(compound.getString(TAG_TYPE));
+            oclass = nameToClassBiMap.get(compound.getString(TAG_TYPE));
 
             if (oclass != null)
             {
@@ -110,7 +151,11 @@ public abstract class AbstractWorkOrder
         }
         try
         {
-            order.readFromNBT(compound);
+            if (compound.hasKey(TAG_TH_PRIORITY))
+            {
+                order.setPriority(compound.getInteger(TAG_TH_PRIORITY));
+            }
+            order.readFromNBT(compound, manager);
         }
         catch (final RuntimeException ex)
         {
@@ -124,13 +169,35 @@ public abstract class AbstractWorkOrder
 
     /**
      * Read the WorkOrder data from the NBTTagCompound.
-     *
-     * @param compound NBT Tag compound
+     *  @param compound NBT Tag compound
+     * @param manager the workManager calling this method.
      */
-    public void readFromNBT(@NotNull final NBTTagCompound compound)
+    @Override
+    public void readFromNBT(@NotNull final NBTTagCompound compound, final IWorkManager manager)
     {
         id = compound.getInteger(TAG_ID);
-        claimedBy = compound.getInteger(TAG_CLAIMED_BY);
+        if (compound.hasKey(TAG_TH_PRIORITY))
+        {
+            priority = compound.getInteger(TAG_TH_PRIORITY);
+        }
+
+        if (compound.hasKey(TAG_CLAIMED_BY))
+        {
+            final int citizenId = compound.getInteger(TAG_CLAIMED_BY);
+            if (manager.getColony() != null)
+            {
+                final ICitizenData data = manager.getColony().getCitizenManager().getCitizen(citizenId);
+                if (data != null && data.getWorkBuilding() != null)
+                {
+                    claimedBy = data.getWorkBuilding().getPosition();
+                }
+            }
+        }
+        else if (compound.hasKey(TAG_CLAIMED_BY_BUILDING))
+        {
+            claimedBy = BlockPosUtil.readFromNBT(compound, TAG_CLAIMED_BY_BUILDING);
+        }
+        buildingLocation = BlockPosUtil.readFromNBT(compound, TAG_BUILDING);
     }
 
     /**
@@ -163,6 +230,7 @@ public abstract class AbstractWorkOrder
      *
      * @return the priority of the work order.
      */
+    @Override
     public int getPriority()
     {
         return this.priority;
@@ -173,6 +241,7 @@ public abstract class AbstractWorkOrder
      *
      * @param priority the new priority.
      */
+    @Override
     public void setPriority(final int priority)
     {
         this.priority = priority;
@@ -183,6 +252,7 @@ public abstract class AbstractWorkOrder
      *
      * @return true if so.
      */
+    @Override
     public boolean hasChanged()
     {
         return changed;
@@ -191,6 +261,7 @@ public abstract class AbstractWorkOrder
     /**
      * Resets the changed variable.
      */
+    @Override
     public void resetChange()
     {
         changed = false;
@@ -201,11 +272,13 @@ public abstract class AbstractWorkOrder
      *
      * @return ID of the work order
      */
+    @Override
     public int getID()
     {
         return id;
     }
 
+    @Override
     public void setID(final int id)
     {
         this.id = id;
@@ -216,9 +289,10 @@ public abstract class AbstractWorkOrder
      *
      * @return true if the Work Order has been claimed
      */
+    @Override
     public boolean isClaimed()
     {
-        return claimedBy != 0;
+        return claimedBy != null;
     }
 
     /**
@@ -227,9 +301,14 @@ public abstract class AbstractWorkOrder
      * @param citizen The citizen to check
      * @return true if the Work Order is claimed by this Citizen
      */
-    public boolean isClaimedBy(@NotNull final CitizenData citizen)
+    @Override
+    public boolean isClaimedBy(@NotNull final ICitizenData citizen)
     {
-        return citizen.getId() == claimedBy;
+        if (citizen.getWorkBuilding() != null)
+        {
+            return citizen.getWorkBuilding().equals(claimedBy);
+        }
+        return false;
     }
 
     /**
@@ -237,7 +316,8 @@ public abstract class AbstractWorkOrder
      *
      * @return ID of citizen the Work Order has been claimed by, or null
      */
-    public int getClaimedBy()
+    @Override
+    public BlockPos getClaimedBy()
     {
         return claimedBy;
     }
@@ -247,19 +327,31 @@ public abstract class AbstractWorkOrder
      *
      * @param citizen {@link CitizenData}
      */
-    void setClaimedBy(@Nullable final CitizenData citizen)
+    @Override
+    public void setClaimedBy(@Nullable final ICitizenData citizen)
     {
         changed = true;
-        claimedBy = (citizen != null) ? citizen.getId() : 0;
+        claimedBy = (citizen != null && citizen.getWorkBuilding() != null) ? citizen.getWorkBuilding().getPosition() : null;
+    }
+
+    /**
+     * Set the Work order as claimed by a given building.
+     * @param builder the building position.
+     */
+    @Override
+    public void setClaimedBy(final BlockPos builder)
+    {
+        claimedBy = builder;
     }
 
     /**
      * Clear the Claimed By status of the Work Order.
      */
+    @Override
     public void clearClaimedBy()
     {
         changed = true;
-        claimedBy = 0;
+        claimedBy = null;
     }
 
     /**
@@ -267,58 +359,58 @@ public abstract class AbstractWorkOrder
      *
      * @param compound NBT tag compount
      */
+    @Override
     public void writeToNBT(@NotNull final NBTTagCompound compound)
     {
-        final String s = classToNameMap.get(this.getClass());
+        final String s = nameToClassBiMap.inverse().get(this.getClass());
 
         if (s == null)
         {
             throw new IllegalStateException(this.getClass() + " is missing a mapping! This is a bug!");
         }
 
+        compound.setInteger(TAG_TH_PRIORITY, priority);
         compound.setString(TAG_TYPE, s);
         compound.setInteger(TAG_ID, id);
-        if (claimedBy != 0)
+        if (claimedBy != null)
         {
-            compound.setInteger(TAG_CLAIMED_BY, claimedBy);
+            BlockPosUtil.writeToNBT(compound, TAG_CLAIMED_BY_BUILDING, claimedBy);
         }
+        BlockPosUtil.writeToNBT(compound, TAG_BUILDING, buildingLocation);
     }
 
     /**
      * Is this WorkOrder still valid?  If not, it will be deleted.
-     *
+     * <p>
      * Suppressing Sonar Rule squid:S1172
      * This rule does " Unused method parameters should be removed"
      * But in this case extending class may need to use the colony parameter
+     *
      * @param colony The colony that owns the Work Order
      * @return True if the WorkOrder is still valid, or False if it should be deleted
      */
+    @Override
     @SuppressWarnings(UNUSED_METHOD_PARAMETERS_SHOULD_BE_REMOVED)
-    public boolean isValid(final Colony colony)
+    public boolean isValid(final IColony colony)
     {
         return true;
     }
-
-    /**
-     * Attempt to fulfill the Work Order.
-     * Override this with an implementation for the Work Order to find a Citizen to perform the job
-     *
-     * @param colony The colony that owns the Work Order
-     */
-    public abstract void attemptToFulfill(Colony colony);
 
     /**
      * Writes the workOrders data to a byte buf for transition.
      *
      * @param buf Buffer to write to
      */
+    @Override
     public void serializeViewNetworkData(@NotNull final ByteBuf buf)
     {
         buf.writeInt(id);
         buf.writeInt(priority);
-        buf.writeInt(claimedBy);
+        BlockPosUtil.writeToByteBuf(buf, claimedBy == null ? BlockPos.ORIGIN : claimedBy);
         buf.writeInt(getType().ordinal());
         ByteBufUtils.writeUTF8String(buf, getValue());
+        BlockPosUtil.writeToByteBuf(buf, buildingLocation == null ? BlockPos.ORIGIN : buildingLocation);
+
         //value is upgradeName and upgradeLevel for workOrderBuild
     }
 
@@ -338,41 +430,78 @@ public abstract class AbstractWorkOrder
     protected abstract String getValue();
 
     /**
-     * Contains all classes which inherit directly from this class.
-     */
-    public enum WorkOrderType
-    {
-        BUILD
-    }
-
-    /**
      * Executed when a work order is added.
-     *
+     * <p>
      * Override this when something need to be done when the work order is added
-     * @param colony in which the work order exist
+     *
+     * @param colony         in which the work order exist
+     * @param readingFromNbt if being read from NBT.
      */
-    public void onAdded(final Colony colony)
+    @Override
+    public void onAdded(final IColony colony, final boolean readingFromNbt)
     {
+        /*
+         * Intentionally left empty.
+         */
     }
 
     /**
      * Executed when a work order is completed.
-     *
+     * <p>
      * Override this when something need to be done when the work order is completed
+     *
      * @param colony in which the work order exist
      */
-    public void onCompleted(final Colony colony)
+    @Override
+    public void onCompleted(final IColony colony)
     {
+        /*
+         * Intentionally left empty.
+         */
     }
 
     /**
      * Executed when a work order is removed.
-     *
+     * <p>
      * Override this when something need to be done when the work order is removed
+     *
      * @param colony in which the work order exist
      */
-    public void onRemoved(final Colony colony)
+    @Override
+    public void onRemoved(final IColony colony)
     {
+        /*
+         * Intentionally left empty.
+         */
     }
 
+    /**
+     * Check if this workOrder can be resolved by an existing builder.
+     *
+     * @param colony the colony to check in.
+     * @param level  the new level of the building.
+     * @return true if so.
+     */
+    @Override
+    public boolean canBeResolved(final IColony colony, final int level)
+    {
+        return colony.getBuildingManager()
+                 .getBuildings()
+                 .values()
+                 .stream()
+                 .anyMatch(building -> building instanceof BuildingBuilder && building.getMainCitizen() != null && building.getBuildingLevel() >= level);
+    }
+
+    /**
+     * Check if this workOrder can be resolved by an existing builder by distance.
+     *
+     * @param colony the colony to check in.
+     * @param level  the new level of the building.
+     * @return true if so.
+     */
+    @Override
+    public boolean tooFarFromAnyBuilder(final IColony colony, final int level)
+    {
+        return false;
+    }
 }

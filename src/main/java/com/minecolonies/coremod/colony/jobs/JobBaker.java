@@ -1,11 +1,15 @@
 package com.minecolonies.coremod.colony.jobs;
 
-import com.minecolonies.coremod.client.render.RenderBipedCitizen;
-import com.minecolonies.coremod.colony.CitizenData;
+import com.minecolonies.api.client.render.modeltype.BipedModelType;
+import com.minecolonies.api.colony.ICitizenData;
+import com.minecolonies.api.colony.jobs.ModJobs;
+import com.minecolonies.api.colony.jobs.registry.JobEntry;
+import com.minecolonies.api.sounds.BakerSounds;
 import com.minecolonies.coremod.entity.ai.basic.AbstractAISkeleton;
 import com.minecolonies.coremod.entity.ai.citizen.baker.EntityAIWorkBaker;
 import net.minecraft.util.SoundEvent;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import static com.minecolonies.api.util.constant.TranslationConstants.COM_MINECOLONIES_COREMOD_JOB_BAKER;
 
@@ -20,9 +24,15 @@ public class JobBaker extends AbstractJob
      *
      * @param entity The entity which will use this job class.
      */
-    public JobBaker(final CitizenData entity)
+    public JobBaker(final ICitizenData entity)
     {
         super(entity);
+    }
+
+    @Override
+    public JobEntry getJobRegistryEntry()
+    {
+        return ModJobs.baker;
     }
 
     /**
@@ -44,9 +54,9 @@ public class JobBaker extends AbstractJob
      */
     @NotNull
     @Override
-    public RenderBipedCitizen.Model getModel()
+    public BipedModelType getModel()
     {
-        return RenderBipedCitizen.Model.BAKER;
+        return BipedModelType.BAKER;
     }
 
     /**
@@ -61,38 +71,36 @@ public class JobBaker extends AbstractJob
         return new EntityAIWorkBaker(this);
     }
 
-    /**
-     * Override this to let the worker return a bedTimeSound.
-     *
-     * @return soundEvent to be played.
-     */
-
+    @Nullable
     @Override
     public SoundEvent getBedTimeSound()
     {
-       /** if (getCitizen() != null)
+        if (getCitizen() != null)
         {
-            return getCitizen().isFemale() ? BakerSounds.Female.offToBed : BakerSounds.Male.offToBed;
+            return getCitizen().isFemale() ? BakerSounds.Female.offToBed : null;
         }
-        */
         return null;
-
     }
 
-    /**
-     * Override this to let the worker return a badWeatherSound.
-     *
-     * @return soundEvent to be played.
-     */
+    @Nullable
     @Override
     public SoundEvent getBadWeatherSound()
     {
-        /**
         if (getCitizen() != null)
         {
-            return getCitizen().isFemale() ? BakerSounds.Female.badWeather : BakerSounds.Male.badWeather;
+            return getCitizen().isFemale() ? BakerSounds.Female.badWeather : null;
         }
-         */
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public SoundEvent getMoveAwaySound()
+    {
+        if (getCitizen() != null)
+        {
+            return getCitizen().isFemale() ? BakerSounds.Female.hostile : null;
+        }
         return null;
     }
 }

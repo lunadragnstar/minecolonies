@@ -22,6 +22,7 @@ public interface ILocation
      *
      * @return The dimension of the location.
      */
+    @NotNull
     int getDimension();
 
     /**
@@ -31,4 +32,6 @@ public interface ILocation
      * @return True when reachable, false when not.
      */
     boolean isReachableFromLocation(@NotNull ILocation location);
+
+
 }
